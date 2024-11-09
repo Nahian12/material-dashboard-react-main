@@ -44,6 +44,7 @@ import Notifications from "layouts/notifications";
 import Profile from "layouts/profile";
 import SignIn from "layouts/authentication/sign-in";
 import SignUp from "layouts/authentication/sign-up";
+import LitterMap from "layouts/litterMap";
 
 // @mui icons
 import Icon from "@mui/material/Icon";
@@ -64,6 +65,14 @@ const routes = [
     icon: <Icon fontSize="small">table_view</Icon>,
     route: "/tables",
     component: <Tables />,
+  },
+  {
+    type: "collapse",
+    name: "Litter Map",
+    key: "litter-map",
+    icon: <Icon fontSize="small">map</Icon>,  // Choose an appropriate icon
+    route: "/litter-map",
+    component: <LitterMap />,
   },
   {
     type: "collapse",

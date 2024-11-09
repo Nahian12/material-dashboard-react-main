@@ -26,3 +26,4 @@ yarn.lock
 
 commit.sh
 src/config/accountFile.json
+src/apiKey.js
