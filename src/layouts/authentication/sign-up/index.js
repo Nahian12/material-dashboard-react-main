@@ -22,11 +22,12 @@ function Cover() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
+      console.log("User created:", user);
       await set(ref(database, "users/" + user.uid), {
         email: user.email,
         rememberMe: rememberMe,
       });
-      console.log("User signed up successfully.");
+      console.log("User data saved to database.");
       navigate("/dashboard"); // Redirect to the dashboard after successful sign-up
     } catch (error) {
       console.error("Sign up failed:", error);
