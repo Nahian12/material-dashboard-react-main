@@ -185,6 +185,9 @@
 // // Compare this snippet from src/config/firebase_config.js:
 
 import React, { useEffect, useState } from "react";
+import Button from "@mui/material/Button";
+import AddIcon from "@mui/icons-material/Add";
+import EditIcon from "@mui/icons-material/Edit";
 import PropTypes from "prop-types";
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
@@ -203,6 +206,10 @@ function Tables() {
   const [users, setUsers] = useState([]);
   const [editingUserId, setEditingUserId] = useState(null);
   const [editFormData, setEditFormData] = useState({});
+  const handleAddStaff = () => {
+    // Implement the logic to add new staff
+    console.log("Add new staff");
+  };
 
   useEffect(() => {
     console.log("Setting up Firebase listener...");
@@ -254,7 +261,6 @@ function Tables() {
       console.error("Error updating user:", error);
     }
   };
-
   const handleCancelClick = () => {
     setEditingUserId(null);
   };
@@ -346,9 +352,23 @@ function Tables() {
                 borderRadius="lg"
                 coloredShadow="info"
               >
-                <MDTypography variant="h6" color="white">
-                  Users Table
-                </MDTypography>
+                <Grid container justifyContent="space-between" alignItems="center">
+                  <Grid item>
+                    <MDTypography variant="h6" color="white">
+                      Staff List
+                    </MDTypography>
+                  </Grid>
+                  <Grid item>
+                    <Button
+                      variant="contained"
+                      color="warning"
+                      startIcon={<AddIcon />}
+                      onClick={handleAddStaff}
+                    >
+                      Add Staff
+                    </Button>
+                  </Grid>
+                </Grid>
               </MDBox>
               <MDBox pt={3}>
                 <DataTable
