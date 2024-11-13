@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Grid from "@mui/material/Grid";
 import Card from "@mui/material/Card";
 import Button from "@mui/material/Button";
@@ -10,35 +10,117 @@ import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
 import DataTable from "examples/Tables/DataTable";
 import PropTypes from "prop-types";
-import team2 from "assets/images/team-2.jpg";
-import team3 from "assets/images/team-3.jpg";
-import team4 from "assets/images/team-4.jpg";
 import MDAvatar from "components/MDAvatar";
 import MDBadge from "components/MDBadge";
+import { addTask, updateTask, deleteTask } from "./taskService";
+import { database } from "config/firebase_config";
+import { ref, onValue } from "firebase/database";
 
 function TasksList() {
+  const [tasks, setTasks] = useState([]);
+  const [newTask, setNewTask] = useState("");
+  const [editingTaskId, setEditingTaskId] = useState(null);
+  const [editingTask, setEditingTask] = useState({});
 
-    const Author = ({ name, email }) => (
-        <MDBox display="flex" alignItems="center" lineHeight={1}>
-            <MDBox lineHeight={1}>
-            <MDTypography display="block" variant="button" fontWeight="light">
-              {name}
-            </MDTypography>
-            <MDTypography variant="caption">{email}</MDTypography>
-          </MDBox>
-        </MDBox>
-      );
+  useEffect(() => {
+    const taskRef = ref(database, "tasks");
+    onValue(taskRef, (snapshot) => {
+      const tasks = snapshot.val();
+      const taskList = [];
+      for (let id in tasks) {
+        taskList.push({ id, ...tasks[id] });
+      }
+      setTasks(taskList);
+    });
+  }, []);
 
-    const Coordinate = ({ latitude, longitude }) => (
-        <MDBox display="flex" alignItems="center" lineHeight={1}>
-            <MDBox lineHeight={1}>
-                <MDTypography display="block" variant="caption">{latitude},</MDTypography>
-                <MDTypography variant="caption">{longitude}</MDTypography>
-            </MDBox>
-        </MDBox>
-      );
-    
-    // Sample data for the table
+  const handleAddTask = () => {
+    const task = {
+      task: newTask,
+      created: new Date().toLocaleString(),
+      assignedTo: { name: "New User", email: "newuser@example.com" },
+      location: { latitude: "0.0000", longitude: "0.0000" },
+      status: "Pending",
+    };
+    addTask(task);
+    setNewTask("");
+  };
+
+  const handleEditTask = (task) => {
+    setEditingTaskId(task.id);
+    setEditingTask(task);
+  };
+
+  const handleSaveTask = () => {
+    updateTask(editingTaskId, editingTask);
+    setEditingTaskId(null);
+    setEditingTask({});
+  };
+
+  const handleDeleteTask = (taskId) => {
+    deleteTask(taskId);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name.includes("assignedTo")) {
+      const field = name.split(".")[1];
+      setEditingTask((prevTask) => ({
+        ...prevTask,
+        assignedTo: {
+          ...prevTask.assignedTo,
+          [field]: value,
+        },
+      }));
+    } else if (name.includes("location")) {
+      const field = name.split(".")[1];
+      setEditingTask((prevTask) => ({
+        ...prevTask,
+        location: {
+          ...prevTask.location,
+          [field]: value,
+        },
+      }));
+    } else {
+      setEditingTask((prevTask) => ({
+        ...prevTask,
+        [name]: value,
+      }));
+    }
+  };
+
+  const Author = ({ name, email }) => (
+    <MDBox display="flex" alignItems="center" lineHeight={1}>
+      <MDBox lineHeight={1}>
+        <MDTypography display="block" variant="button" fontWeight="light">
+          {name}
+        </MDTypography>
+        <MDTypography variant="caption">{email}</MDTypography>
+      </MDBox>
+    </MDBox>
+  );
+
+  const Coordinate = ({ latitude, longitude }) => (
+    <MDBox display="flex" alignItems="center" lineHeight={1}>
+      <MDBox lineHeight={1}>
+        <MDTypography display="block" variant="caption">
+          {latitude},
+        </MDTypography>
+        <MDTypography variant="caption">{longitude}</MDTypography>
+      </MDBox>
+    </MDBox>
+  );
+
+  Coordinate.propTypes = {
+    latitude: PropTypes.string.isRequired,
+    longitude: PropTypes.string.isRequired,
+  };
+
+  Author.propTypes = {
+    name: PropTypes.string.isRequired,
+    email: PropTypes.string.isRequired,
+  };
+
   const columns = [
     { Header: "Task ID", accessor: "task", align: "left" },
     { Header: "Created", accessor: "created", align: "left" },
@@ -48,49 +130,79 @@ function TasksList() {
     { Header: "action", accessor: "action", align: "center" },
   ];
 
-  const rows = [
-    { task: "Task 1",
-      created:  
+  const rows = tasks.map((task) => ({
+    task:
+      editingTaskId === task.id ? (
+        <input type="text" name="task" value={editingTask.task} onChange={handleChange} />
+      ) : (
+        task.task
+      ),
+    created: (
       <MDTypography component="a" variant="caption" color="text" fontWeight="medium">
-      22.54 - 01/11/24
-        </MDTypography>
-      , assignedTo: <Author name="John Michael" email="john@gmail.com" />,
-      location:
-      <Coordinate latitude="3.1254542" longitude="108.554851" />
-      , status: (
+        {task.created}
+      </MDTypography>
+    ),
+    assignedTo:
+      editingTaskId === task.id ? (
+        <>
+          <input
+            type="text"
+            name="assignedTo.name"
+            value={editingTask.assignedTo?.name || ""}
+            onChange={handleChange}
+          />
+          <input
+            type="text"
+            name="assignedTo.email"
+            value={editingTask.assignedTo?.email || ""}
+            onChange={handleChange}
+          />
+        </>
+      ) : (
+        <Author name={task.assignedTo.name} email={task.assignedTo.email} />
+      ),
+    location:
+      editingTaskId === task.id ? (
+        <>
+          <input
+            type="text"
+            name="location.latitude"
+            value={editingTask.location?.latitude || ""}
+            onChange={handleChange}
+          />
+          <input
+            type="text"
+            name="location.longitude"
+            value={editingTask.location?.longitude || ""}
+            onChange={handleChange}
+          />
+        </>
+      ) : (
+        <Coordinate latitude={task.location.latitude} longitude={task.location.longitude} />
+      ),
+    status:
+      editingTaskId === task.id ? (
+        <input type="text" name="status" value={editingTask.status} onChange={handleChange} />
+      ) : (
         <MDBox ml={-1}>
-          <MDBadge badgeContent="Completed" color="success" variant="gradient" size="sm" />
+          <MDBadge
+            badgeContent={task.status}
+            color={task.status === "Completed" ? "success" : "dark"}
+            variant="gradient"
+            size="sm"
+          />
         </MDBox>
-      )
-      ,action: (
-        <MDTypography component="a" href="#" variant="caption" color="text" fontWeight="medium">
-          Edit
-        </MDTypography>
-      ), },
-      { task: "Task 2",
-        created:  
-        <MDTypography component="a" variant="caption" color="text" fontWeight="medium">
-        12.14 - 25/10/24
-          </MDTypography>
-        , assignedTo: <Author name="Abu" email="abu@siswa.com" />,
-        location:
-        <Coordinate latitude="3.34454542" longitude="110.254851" />
-        , status: (
-          <MDBox ml={-1}>
-            <MDBadge badgeContent="Pending" color="dark" variant="gradient" size="sm" />
-          </MDBox>
-        )
-        ,action: (
-          <MDTypography component="a" href="#" variant="caption" color="text" fontWeight="medium">
-            Edit
-          </MDTypography>
-        ), },
-  ];
-
-  const handleAddTask = () => {
-    // Implement the logic to add a new task
-    console.log("Add new task");
-  };
+      ),
+    action:
+      editingTaskId === task.id ? (
+        <>
+          <Button onClick={handleSaveTask}>Save</Button>
+          <Button onClick={() => handleDeleteTask(task.id)}>Delete</Button>
+        </>
+      ) : (
+        <Button onClick={() => handleEditTask(task)}>Edit</Button>
+      ),
+  }));
 
   return (
     <DashboardLayout>
@@ -116,6 +228,12 @@ function TasksList() {
                     </MDTypography>
                   </Grid>
                   <Grid item>
+                    <input
+                      type="text"
+                      value={newTask}
+                      onChange={(e) => setNewTask(e.target.value)}
+                      placeholder="New Task"
+                    />
                     <Button
                       variant="contained"
                       color="warning"
