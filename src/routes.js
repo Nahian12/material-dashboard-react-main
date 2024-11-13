@@ -61,7 +61,7 @@ const routes = [
   },
   {
     type: "collapse",
-    name: "Tables",
+    name: "Staff List",
     key: "tables",
     icon: <Icon fontSize="small">table_view</Icon>,
     route: "/tables",
@@ -71,7 +71,7 @@ const routes = [
     type: "collapse",
     name: "Litter Map",
     key: "litter-map",
-    icon: <Icon fontSize="small">map</Icon>,  // Choose an appropriate icon
+    icon: <Icon fontSize="small">map</Icon>, // Choose an appropriate icon
     route: "/litter-map",
     component: <LitterMap />,
   },
