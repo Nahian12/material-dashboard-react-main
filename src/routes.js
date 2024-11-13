@@ -45,6 +45,7 @@ import Profile from "layouts/profile";
 import SignIn from "layouts/authentication/sign-in";
 import SignUp from "layouts/authentication/sign-up";
 import LitterMap from "layouts/litterMap";
+import TasksList from "layouts/tasksList";
 
 // @mui icons
 import Icon from "@mui/material/Icon";
@@ -73,6 +74,14 @@ const routes = [
     icon: <Icon fontSize="small">map</Icon>,  // Choose an appropriate icon
     route: "/litter-map",
     component: <LitterMap />,
+  },
+  {
+    type: "collapse",
+    name: "Tasks List",
+    key: "tasks-list",
+    icon: <Icon fontSize="small">list</Icon>, // Choose an appropriate icon
+    route: "/tasks-list",
+    component: <TasksList />,
   },
   {
     type: "collapse",
