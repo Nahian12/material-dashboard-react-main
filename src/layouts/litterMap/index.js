@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-maps/api";
 
-// @mui material components
 import Card from "@mui/material/Card";
 import Button from "@mui/material/Button";
 import Modal from "@mui/material/Modal";
@@ -11,11 +10,9 @@ import FormControl from "@mui/material/FormControl";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 
-// Material Dashboard 2 React components
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 
-// Material Dashboard 2 React example components
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import Footer from "examples/Footer";
@@ -35,7 +32,7 @@ const center = {
 function LitterMap() {
   const { isLoaded } = useJsApiLoader({
     id: "google-map-script",
-    googleMapsApiKey: GOOGLE_MAPS_API_KEY, // Replace with your Google Maps API key
+    googleMapsApiKey: GOOGLE_MAPS_API_KEY,
   });
 
   const [map, setMap] = useState(null);
