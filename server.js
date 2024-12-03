@@ -1,6 +1,7 @@
 // server.js
 const express = require("express");
 const cors = require("cors");
+const nodemailer = require('nodemailer');
 const admin = require("firebase-admin");
 
 const app = express();
@@ -34,6 +35,33 @@ app.post("/login", async (req, res) => {
     // If there’s an error (e.g., user not found), respond with an error message
     res.status(400).json({ error: "Invalid email or password." });
   }
+});
+
+const transporter = nodemailer.createTransport({
+  service: 'yahoo',
+  auth: {
+    user: 'nahian3@yahoo.com', // Replace with your email
+    pass: 'ingxusrppamthuxz', // Replace with your email password
+  },
+});
+
+app.post('/send-email', (req, res) => {
+  const { email, subject, text } = req.body;
+
+  const mailOptions = {
+    from: 'nahian3@yahoo.com', // Replace with your email
+    to: email,
+    subject: subject,
+    text: text,
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error('Error sending email:', error); // Log the error
+      return res.status(500).json({ error: error.toString() });
+    }
+    res.status(200).json({ message: 'Email sent successfully' });
+  });
 });
 
 const PORT = process.env.PORT || 5000;

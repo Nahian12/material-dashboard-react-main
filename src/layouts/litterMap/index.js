@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from "@react-google-maps/api";
+import { database } from "config/firebase_config"; // Adjust the import path as necessary
+import { ref, onValue, update } from "firebase/database"; // Adjust the import path as necessary
+import axios from "axios";
 
 import Card from "@mui/material/Card";
 import Button from "@mui/material/Button";
@@ -12,6 +15,7 @@ import MenuItem from "@mui/material/MenuItem";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
+import MDButton from "components/MDButton";
 
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
@@ -42,8 +46,31 @@ function LitterMap() {
   ]);
   const [selected, setSelected] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [staff, setStaff] = useState([{ id: 1, name: "John Doe" }, { id: 2, name: "Jane Smith" }]);
+  const [staff, setStaff] = useState([]);
   const [selectedStaff, setSelectedStaff] = useState("");
+  const [tasks, setTasks] = useState([]);
+
+  useEffect(() => {
+    const tasksRef = ref(database, "tasks");
+    onValue(tasksRef, (snapshot) => {
+      const data = snapshot.val();
+      const tasksList = [];
+      for (let id in data) {
+        tasksList.push({ id, ...data[id] });
+      }
+      setTasks(tasksList);
+    });
+
+    const usersRef = ref(database, "users");
+    onValue(usersRef, (snapshot) => {
+      const data = snapshot.val();
+      const usersList = [];
+      for (let id in data) {
+        usersList.push({ id, ...data[id] });
+      }
+      setStaff(usersList);
+    });
+  }, []);
 
   const onLoad = React.useCallback((map) => {
     const bounds = new window.google.maps.LatLngBounds(center);
@@ -67,17 +94,51 @@ function LitterMap() {
     setShowModal(true);
   };
 
-  const handleCloseModal = () => setShowModal(false);
+  // const handleCloseModal = () => setShowModal(false);
 
-  const handleStaffChange = (e) => {
-    setSelectedStaff(e.target.value);
+  // const handleStaffChange = (e) => {
+  //   setSelectedStaff(e.target.value);
+  // };
+
+  const handleAssignStaff = () => {
+    setShowModal(true);
   };
 
-  const handleAssign = () => {
-    if (selected) {
-      console.log(`Assigned ${selectedStaff} to location ${selected.latitude}, ${selected.longitude}`);
-      setSelected({ ...selected, assigned_staff: selectedStaff });
-      handleCloseModal();
+  const handleCloseModal = () => {
+    setShowModal(false);
+  };
+
+  const handleStaffChange = (event) => {
+    setSelectedStaff(event.target.value);
+  };
+
+  const handleSaveStaff = async () => {
+    if (selected && selectedStaff) {
+      const selectedUser = staff.find((user) => user.id === selectedStaff);
+      if (selectedUser) {
+        const taskRef = ref(database, `tasks/${selected.id}`);
+        await update(taskRef, {
+          assignedTo: {
+            email: selectedUser.email,
+            name: selectedUser.id,
+          },
+        });
+        setSelected({
+          ...selected,
+          assignedTo: {
+            email: selectedUser.email,
+            name: selectedUser.id,
+          },
+        });
+        setShowModal(false);
+
+        // Send email notification
+        await axios.post("http://localhost:5000/send-email", {
+          email: selectedUser.email,
+          subject: "New Task Assigned",
+          text: `You have been assigned a new task with ID: ${selected.id}`,
+        });
+      }
     }
   };
 
@@ -91,35 +152,41 @@ function LitterMap() {
               <GoogleMap
                 mapContainerStyle={containerStyle}
                 center={center}
-                zoom={17}
+                zoom={12}
                 onLoad={onLoad}
                 onUnmount={onUnmount}
               >
-                {litterData.map((litter) => (
+                {tasks.map((task) => (
                   <Marker
-                    key={litter.id}
-                    position={{ lat: litter.latitude, lng: litter.longitude }}
-                    onClick={() => handleMarkerClick(litter)}
+                    key={task.id}
+                    position={{ lat: parseFloat(task.location.latitude), lng: parseFloat(task.location.longitude) }}
+                    onClick={() => setSelected(task)}
                   />
                 ))}
-                {selected && (
-                  <InfoWindow
-                    position={{ lat: selected.latitude, lng: selected.longitude }}
-                    onCloseClick={handleInfoWindowClose}
-                  >
-                    <Box>
-                      <Typography variant="h6">Details</Typography>
-                      <Typography variant="body2">
-                        {selected.litter.split(",").map((item, index) => (
-                          <p key={index}>{item.trim()}</p>
-                        ))}
-                      </Typography>
-                      <Button variant="contained" color="primary" onClick={handleAssignStaffClick}>
-                        Assign Staff
-                      </Button>
-                    </Box>
-                  </InfoWindow>
-                )}
+
+              {selected && (
+                <InfoWindow
+                  position={{ lat: parseFloat(selected.location.latitude), lng: parseFloat(selected.location.longitude) }}
+                  onCloseClick={() => setSelected(null)}
+                >
+                  <div>
+                    <h2>Task ID: {selected.task}</h2>
+                    <p>Status: {selected.status}</p>
+                    <p>Assigned To: {selected.assignedTo.email} ({selected.assignedTo.name})</p>
+                    <p>Items:</p>
+                    <ul>
+                      {Object.entries(selected.items).map(([item, count]) => (
+                        <li key={item}>
+                          {item}: {count}
+                        </li>
+                      ))}
+                    </ul>
+                    <Button variant="contained" color="primary" onClick={handleAssignStaff}>
+                      Assign Staff
+                    </Button>
+                  </div>
+                </InfoWindow>
+              )}
               </GoogleMap>
             ) : (
               <Typography>Loading map...</Typography>
@@ -130,32 +197,40 @@ function LitterMap() {
       {/* <Footer /> */}
 
       <Modal open={showModal} onClose={handleCloseModal}>
-        <Box sx={{ p: 4, backgroundColor: "white", borderRadius: "8px", maxWidth: "500px", mx: "auto", my: "20vh" }}>
-          <Typography variant="h6" gutterBottom>
+        <MDBox
+          p={4}
+          bgcolor="background.paper"
+          borderRadius="lg"
+          width="300px"
+          mx="auto"
+          mt="10%"
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+        >
+          <MDTypography variant="h6" component="h2" gutterBottom>
             Assign Staff
-          </Typography>
-          <FormControl fullWidth>
-            <Select value={selectedStaff} onChange={handleStaffChange} displayEmpty>
-              <MenuItem value="" disabled>Select a staff member</MenuItem>
-              {staff.map((member) => (
-                <MenuItem key={member.id} value={member.name}>
-                  {member.name}
+          </MDTypography>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <Select value={selectedStaff} onChange={handleStaffChange}>
+              {staff.map((user) => (
+                <MenuItem key={user.id} value={user.id}>
+                  {user.name} ({user.email})
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
-          <Box mt={2}>
-            <Button variant="contained" color="primary" onClick={handleAssign} disabled={!selectedStaff}>
-              Assign
-            </Button>
-            <Button variant="text" onClick={handleCloseModal} sx={{ ml: 2 }}>
+          <MDBox mt={2} display="flex" justifyContent="space-between" width="100%">
+            <MDButton variant="contained" color="primary" onClick={handleSaveStaff}>
+              Save
+            </MDButton>
+            <MDButton variant="contained" color="secondary" onClick={handleCloseModal}>
               Cancel
-            </Button>
-          </Box>
-        </Box>
+            </MDButton>
+          </MDBox>
+        </MDBox>
       </Modal>
     </DashboardLayout>
-  );
+  )
 }
-
 export default LitterMap;
