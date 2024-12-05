@@ -13,9 +13,13 @@ import DataTable from "examples/Tables/DataTable";
 import PropTypes from "prop-types";
 import MDAvatar from "components/MDAvatar";
 import MDBadge from "components/MDBadge";
+import MDProgress from "components/MDProgress";
+import Slider from "@mui/material/Slider";
+
 import { addTask, updateTask, deleteTask } from "./taskService";
 import { database } from "config/firebase_config";
-import { ref, onValue } from "firebase/database";
+import { ref, onValue, update } from "firebase/database";
+
 
 function TasksList() {
   const [tasks, setTasks] = useState([]);
@@ -48,21 +52,25 @@ function TasksList() {
     setIsAddingNew(true);
   };
 
+  const handleSliderChange = (taskId, newValue) => {
+    setEditFormData({ ...editFormData, completion: newValue });
+  };
+
   const handleEditTask = (task) => {
     setEditingTaskId(task.id);
     setEditingTask(task);
   };
 
-  const handleSaveTask = () => {
+  const handleSaveTask = async () => {
     if (isAddingNew) {
-      addTask(editFormData);
-      setIsAddingNew(false); 
-      setEditFormData({}); 
-    } else if (editingTaskId) {
-      updateTask(editingTaskId, editingTask); 
-      setEditingTaskId(null);
-      setEditingTask({}); 
+      await addTask(editFormData);
+    } else {
+      const taskRef = ref(database, `tasks/${editingTaskId}`);
+      await update(taskRef, editFormData);
     }
+    setIsAddingNew(false);
+    setEditingTaskId(null);
+    setEditFormData({});
   };
 
   const handleCancelClick = () => {
@@ -206,7 +214,73 @@ function TasksList() {
               onChange={handleChange}
             />
           </>,
-            status:<MDInput name="status" value={editFormData.status} onChange={handleChange} />,
+            status:(
+              <MDBox width="100%">
+                <Slider
+                  value={editFormData.completion || 0}
+                  onChange={(e, newValue) => handleSliderChange(null, newValue)}
+                  step={25}
+                  marks={[
+                    { value: 0, label: "0%" },
+                    { value: 25, label: "25%" },
+                    { value: 50, label: "50%" },
+                    { value: 75, label: "75%" },
+                    { value: 100, label: "100%" },
+                  ]}
+                  min={0}
+                  max={100}
+                  valueLabelDisplay="auto"
+                  sx={{
+                    minWidth: 200,
+                    color: '#007bff',
+                    height: 5,
+                    padding: '15px 0',
+                    '& .MuiSlider-track': {
+                      border: 'none',
+                      height: 4, // Increase the height of the track
+                    },
+                    '& .MuiSlider-rail': {
+                      height: 4, // Increase the height of the rail
+                    },
+                    '& .MuiSlider-thumb': {
+                      height: 20,
+                      width: 20,
+                      backgroundColor: '#fff',
+                      boxShadow: '0 0 2px 0px rgba(0, 0, 0, 0.1)',
+                      '&:focus, &:hover, &.Mui-active': {
+                        boxShadow: '0px 0px 3px 1px rgba(0, 0, 0, 0.1)',
+                        '@media (hover: none)': {
+                          boxShadow: '0px 0px 3px 1px rgba(0, 0, 0, 0.1)',
+                        },
+                      },
+                      '&:before': {
+                        boxShadow:
+                          '0px 0px 1px 0px rgba(0,0,0,0.2), 0px 0px 0px 0px rgba(0,0,0,0.14), 0px 0px 1px 0px rgba(0,0,0,0.12)',
+                      },
+                    },
+                    '& .MuiSlider-valueLabel': {
+                      fontSize: 12,
+                      fontWeight: 'normal',
+                      top: -6,
+                      backgroundColor: 'unset',
+                      color: '#000',
+                      '&::before': {
+                        display: 'none',
+                      },
+                      '& *': {
+                        background: 'transparent',
+                        color: '#000',
+                      },
+                    },
+                  }}
+                />
+              </MDBox>
+            ),
+            action: (
+              <MDButton variant="contained" color="primary" onClick={handleSaveTask}>
+                Save
+              </MDButton>
+            ),
             action:
             <>
             
@@ -271,11 +345,77 @@ function TasksList() {
       ) : (
         <Coordinate latitude={task.location.latitude} longitude={task.location.longitude} />
       ),
-    status:
+      status:
       editingTaskId === task.id ? (
-        <MDInput name="status" value={editingTask.status} onChange={handleChange} />
-      ): (
-        task.status
+        <MDBox width="100%">
+          <Slider
+            value={editFormData.completion !== undefined ? editFormData.completion : editingTask.completion || 0}
+            onChange={(e, newValue) => handleSliderChange(task.id, newValue)}
+            step={25}
+            marks={[
+              { value: 0, label: "0%" },
+              { value: 25, label: "25%" },
+              { value: 50, label: "50%" },
+              { value: 75, label: "75%" },
+              { value: 100, label: "100%" },
+            ]}
+            min={0}
+            max={100}
+            valueLabelDisplay="auto"
+            sx={{
+              minWidth: 200,
+              color: '#007bff',
+              height: 5,
+              padding: '15px 0',
+              '& .MuiSlider-track': {
+                border: 'none',
+                height: 4, // Increase the height of the track
+              },
+              '& .MuiSlider-rail': {
+                height: 4, // Increase the height of the rail
+              },
+              '& .MuiSlider-thumb': {
+                height: 20,
+                width: 20,
+                backgroundColor: '#fff',
+                boxShadow: '0 0 2px 0px rgba(0, 0, 0, 0.1)',
+                '&:focus, &:hover, &.Mui-active': {
+                  boxShadow: '0px 0px 3px 1px rgba(0, 0, 0, 0.1)',
+                  '@media (hover: none)': {
+                    boxShadow: '0px 0px 3px 1px rgba(0, 0, 0, 0.1)',
+                  },
+                },
+                '&:before': {
+                  boxShadow:
+                    '0px 0px 1px 0px rgba(0,0,0,0.2), 0px 0px 0px 0px rgba(0,0,0,0.14), 0px 0px 1px 0px rgba(0,0,0,0.12)',
+                },
+              },
+              '& .MuiSlider-valueLabel': {
+                fontSize: 12,
+                fontWeight: 'normal',
+                top: -6,
+                backgroundColor: 'unset',
+                color: '#000',
+                '&::before': {
+                  display: 'none',
+                },
+                '& *': {
+                  background: 'transparent',
+                  color: '#000',
+                },
+              },
+            }}
+          />
+        </MDBox>
+      ) : (
+        <MDBox width="8rem" textAlign="left">
+          <MDProgress
+            value={task.completion || 0}
+            color={task.completion === 100 ? "success" : "info"}
+            variant="gradient"
+            label={false}
+          />
+        </MDBox>
       ),
     action:
       isAddingNew && task.id === "" ? (
