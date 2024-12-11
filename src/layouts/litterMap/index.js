@@ -145,7 +145,7 @@ function LitterMap() {
     <DashboardLayout>
       <DashboardNavbar />
       <MDBox mt={3} mb={3} px={3}>
-      <Card sx={{ width: "100%", borderRadius: "8px" }}>
+        <Card sx={{ width: "100%", borderRadius: "8px" }}>
           <MDBox>
             {isLoaded ? (
               <GoogleMap
@@ -158,34 +158,42 @@ function LitterMap() {
                 {tasks.map((task) => (
                   <Marker
                     key={task.id}
-                    position={{ lat: parseFloat(task.location.latitude), lng: parseFloat(task.location.longitude) }}
+                    position={{
+                      lat: parseFloat(task.location.latitude),
+                      lng: parseFloat(task.location.longitude),
+                    }}
                     onClick={() => setSelected(task)}
                   />
                 ))}
 
-              {selected && (
-                <InfoWindow
-                  position={{ lat: parseFloat(selected.location.latitude), lng: parseFloat(selected.location.longitude) }}
-                  onCloseClick={() => setSelected(null)}
-                >
-                  <div>
-                    <h2>Task ID: {selected.task}</h2>
-                    <p>Status: {selected.status}</p>
-                    <p>Assigned To: {selected.assignedTo.email} ({selected.assignedTo.name})</p>
-                    <p>Items:</p>
-                    <ul>
-                      {Object.entries(selected.items).map(([item, count]) => (
-                        <li key={item}>
-                          {item}: {count}
-                        </li>
-                      ))}
-                    </ul>
-                    <Button variant="contained" color="primary" onClick={handleAssignStaff}>
-                      Assign Staff
-                    </Button>
-                  </div>
-                </InfoWindow>
-              )}
+                {selected && (
+                  <InfoWindow
+                    position={{
+                      lat: parseFloat(selected.location.latitude),
+                      lng: parseFloat(selected.location.longitude),
+                    }}
+                    onCloseClick={() => setSelected(null)}
+                  >
+                    <div>
+                      <h2>Task ID: {selected.task}</h2>
+                      <p>Status: {selected.status}</p>
+                      <p>
+                        Assigned To: {selected.assignedTo.email} ({selected.assignedTo.name})
+                      </p>
+                      <p>Items:</p>
+                      <ul>
+                        {Object.entries(selected.items).map(([item, count]) => (
+                          <li key={item}>
+                            {item}: {count}
+                          </li>
+                        ))}
+                      </ul>
+                      <Button variant="contained" color="primary" onClick={handleAssignStaff}>
+                        Assign Staff
+                      </Button>
+                    </div>
+                  </InfoWindow>
+                )}
               </GoogleMap>
             ) : (
               <Typography>Loading map...</Typography>
@@ -229,6 +237,6 @@ function LitterMap() {
         </MDBox>
       </Modal>
     </DashboardLayout>
-  )
+  );
 }
 export default LitterMap;
