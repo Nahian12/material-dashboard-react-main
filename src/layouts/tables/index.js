@@ -9,7 +9,6 @@ import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
-import Footer from "examples/Footer";
 import DataTable from "examples/Tables/DataTable";
 import { database } from "config/firebase_config"; // Database Path
 import { ref, onValue, update, remove, push } from "firebase/database";
@@ -243,7 +242,6 @@ function Tables() {
           </Grid>
         </Grid>
       </MDBox>
-      <Footer />
     </DashboardLayout>
   );
 }
