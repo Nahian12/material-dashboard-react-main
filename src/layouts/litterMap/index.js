@@ -135,7 +135,7 @@ function LitterMap() {
         await axios.post("http://localhost:5000/send-email", {
           email: selectedUser.email,
           subject: "New Task Assigned",
-          text: `You have been assigned a new task with ID: ${selected.id}`,
+          text: `You have been assigned a new task with ID: ${selected.task} at location: ${selected.location.latitude}, ${selected.location.longitude}`,
         });
       }
     }

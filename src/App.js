@@ -1,18 +1,3 @@
-/**
-=========================================================
-* Material Dashboard 2 React - v2.2.0
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/material-dashboard-react
-* Copyright 2023 Creative Tim (https://www.creative-tim.com)
-
-Coded by www.creative-tim.com
-
- =========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-*/
-
 import { useState, useEffect, useMemo } from "react";
 
 // react-router components
@@ -44,7 +29,8 @@ import { CacheProvider } from "@emotion/react";
 import createCache from "@emotion/cache";
 
 // Material Dashboard 2 React routes
-import routes from "routes";
+// import routes from "routes";
+import { routes, authRoutes } from "routes";
 
 // Material Dashboard 2 React contexts
 import { useMaterialUIController, setMiniSidenav, setOpenConfigurator } from "context";
@@ -52,6 +38,9 @@ import { useMaterialUIController, setMiniSidenav, setOpenConfigurator } from "co
 // Images
 import brandWhite from "assets/images/logo-ct.png";
 import brandDark from "assets/images/logo-ct-dark.png";
+
+import { AuthProvider } from "./AuthContext";
+import ProtectedRoute from "./ProtectedRoute";
 
 export default function App() {
   const [controller, dispatch] = useMaterialUIController();
@@ -116,7 +105,19 @@ export default function App() {
       }
 
       if (route.route) {
-        return <Route exact path={route.route} element={route.component} key={route.key} />;
+        return (
+          <Route
+            key={route.key}
+            path={route.route}
+            element={
+              route.authRequired ? (
+                <ProtectedRoute>{route.component}</ProtectedRoute>
+              ) : (
+                route.component
+              )
+            }
+          />
+        );
       }
 
       return null;
@@ -165,10 +166,13 @@ export default function App() {
           </>
         )}
         {layout === "vr" && <Configurator />}
-        <Routes>
-          {getRoutes(routes)}
-          <Route path="*" element={<Navigate to="/dashboard" />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            {getRoutes(routes)}
+            {getRoutes(authRoutes)}
+            <Route path="*" element={<Navigate to="/dashboard" />} />
+          </Routes>
+        </AuthProvider>
       </ThemeProvider>
     </CacheProvider>
   ) : (
@@ -189,10 +193,13 @@ export default function App() {
         </>
       )}
       {layout === "vr" && <Configurator />}
-      <Routes>
-        {getRoutes(routes)}
-        <Route path="*" element={<Navigate to="/dashboard" />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          {getRoutes(routes)}
+          {getRoutes(authRoutes)}
+          <Route path="*" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

@@ -25,7 +25,7 @@ import BasicLayout from "layouts/authentication/components/BasicLayout";
 import bgImage from "assets/images/bg-sign-in-basic.jpeg";
 
 // Function to handle login
-import { auth } from "C:/Users/User/Documents/GitHub/material-dashboard-react-main/src/config/firebase_config.js";
+import { auth } from "../../../config/firebase_config";
 
 function Basic() {
   const [email, setEmail] = useState("");
