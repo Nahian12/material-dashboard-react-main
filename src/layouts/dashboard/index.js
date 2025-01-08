@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 // @mui material components
 import Grid from "@mui/material/Grid";
 
@@ -19,8 +20,76 @@ import reportsLineChartData from "layouts/dashboard/data/reportsLineChartData";
 import Projects from "layouts/dashboard/components/Projects";
 import OrdersOverview from "layouts/dashboard/components/OrdersOverview";
 
+import { database } from "config/firebase_config";
+import { ref, onValue } from "firebase/database";
+
 function Dashboard() {
+  const chartData = reportsBarChartData();
+  const lineData = reportsLineChartData();
   const { sales, tasks } = reportsLineChartData;
+  const [tasksCompletedToday, setTasksCompletedToday] = useState(0);
+  const [tasksCompletedYesterday, setTasksCompletedYesterday] = useState(0);
+  const [tasksCompletedThisWeek, setTasksCompletedThisWeek] = useState(0);
+  const [tasksCompletedLastWeek, setTasksCompletedLastWeek] = useState(0);
+  const [uncollectedLitter, setUncollectedLitter] = useState(0);
+  const [pendingTasks, setPendingTasks] = useState(0);
+
+  useEffect(() => {
+    const statisticsRef = ref(database, "Statistics/Tasks Completed Today");
+    onValue(statisticsRef, (snapshot) => {
+      const data = snapshot.val();
+      setTasksCompletedToday(data || 0);
+    });
+
+    const yesterdayRef = ref(database, "Statistics/Tasks Completed Yesterday");
+    onValue(yesterdayRef, (snapshot) => {
+      const data = snapshot.val();
+      setTasksCompletedYesterday(data || 0);
+    });
+
+    const weekRef = ref(database, "Statistics/Tasks Completed This Week");
+    onValue(weekRef, (snapshot) => {
+      const data = snapshot.val();
+      setTasksCompletedThisWeek(data || 0);
+    });
+
+    const lastWeekRef = ref(database, "Statistics/Tasks Completed Last Week");
+    onValue(lastWeekRef, (snapshot) => {
+      const data = snapshot.val();
+      setTasksCompletedLastWeek(data || 0);
+    });
+
+    const litterRef = ref(database, "Statistics/Uncollected Litter");
+    onValue(litterRef, (snapshot) => {
+      const data = snapshot.val();
+      setUncollectedLitter(data || 0);
+    });
+
+    const pendingRef = ref(database, "Statistics/Pending Tasks");
+    onValue(pendingRef, (snapshot) => {
+      const data = snapshot.val();
+      setPendingTasks(data || 0);
+    });
+  }, []);
+
+  const calculatePercentageDifference = (current, previous) => {
+    if (previous === 0) return current === 0 ? 0 : 100;
+    return Math.round(((current - previous) / previous) * 100);
+  };
+
+  const percentageDifference = calculatePercentageDifference(
+    tasksCompletedToday,
+    tasksCompletedYesterday
+  );
+  const percentageColor = percentageDifference >= 0 ? "success" : "error";
+  const percentageSign = percentageDifference >= 0 ? "+" : "";
+
+  const percentageDifferenceWeek = calculatePercentageDifference(
+    tasksCompletedThisWeek,
+    tasksCompletedLastWeek
+  );
+  const percentageColorWeek = percentageDifferenceWeek >= 0 ? "success" : "error";
+  const percentageSignWeek = percentageDifferenceWeek >= 0 ? "+" : "";
 
   return (
     <DashboardLayout>
@@ -32,12 +101,12 @@ function Dashboard() {
               <ComplexStatisticsCard
                 color="dark"
                 icon="weekend"
-                title="Litter Collected Today"
-                count={121}
+                title="Tasks Completed Today"
+                count={tasksCompletedToday}
                 percentage={{
-                  color: "success",
-                  amount: "+55%",
-                  label: "than lask week",
+                  color: percentageColor,
+                  amount: `${percentageSign}${percentageDifference.toFixed(0)}%`,
+                  label: "than yesterday",
                 }}
               />
             </MDBox>
@@ -47,11 +116,11 @@ function Dashboard() {
               <ComplexStatisticsCard
                 icon="leaderboard"
                 title="Tasks Completed This Week"
-                count="2,300"
+                count={tasksCompletedThisWeek}
                 percentage={{
-                  color: "success",
-                  amount: "+3%",
-                  label: "than last month",
+                  color: percentageColorWeek,
+                  amount: `${percentageSignWeek}${percentageDifferenceWeek.toFixed(0)}%`,
+                  label: "than last week",
                 }}
               />
             </MDBox>
@@ -62,11 +131,11 @@ function Dashboard() {
                 color="success"
                 icon="store"
                 title="Uncollected Litter"
-                count="34k"
+                count={uncollectedLitter}
                 percentage={{
                   color: "success",
-                  amount: "+1%",
-                  label: "than yesterday",
+                  amount: "",
+                  label: "Current total uncollected litter",
                 }}
               />
             </MDBox>
@@ -77,11 +146,11 @@ function Dashboard() {
                 color="primary"
                 icon="person_add"
                 title="Pending Tasks"
-                count="+91"
+                count={pendingTasks}
                 percentage={{
                   color: "success",
                   amount: "",
-                  label: "Just updated",
+                  label: "Current total pending tasks",
                 }}
               />
             </MDBox>
@@ -93,10 +162,10 @@ function Dashboard() {
               <MDBox mb={3}>
                 <ReportsBarChart
                   color="info"
-                  title="Daily Litter Collection"
-                  description="Last Campaign Performance"
-                  date="campaign sent 2 days ago"
-                  chart={reportsBarChartData}
+                  title="Daily Task Completion"
+                  description="Task Completion Graph"
+                  date="Updated just now"
+                  chart={chartData}
                 />
               </MDBox>
             </Grid>
@@ -104,14 +173,15 @@ function Dashboard() {
               <MDBox mb={3}>
                 <ReportsLineChart
                   color="success"
-                  title="daily sales"
-                  description={
-                    <>
-                      (<strong>+15%</strong>) increase in today sales.
-                    </>
-                  }
-                  date="updated 4 min ago"
-                  chart={sales}
+                  title="Monthly Completed Tasks"
+                  // description={
+                  //   <>
+                  //     (<strong>+15%</strong>) increase in today sales.
+                  //   </>
+                  // }
+                  description="Completed Tasks Comparison"
+                  date="Updated just now"
+                  chart={lineData.sales}
                 />
               </MDBox>
             </Grid>
@@ -119,16 +189,16 @@ function Dashboard() {
               <MDBox mb={3}>
                 <ReportsLineChart
                   color="dark"
-                  title="completed tasks"
-                  description="Last Campaign Performance"
-                  date="just updated"
-                  chart={tasks}
+                  title="Monthly Total Uncollected Litter"
+                  description="Uncollected Litter Comparison"
+                  date="Updated just now"
+                  chart={lineData.tasks}
                 />
               </MDBox>
             </Grid>
           </Grid>
         </MDBox>
-        <MDBox>
+        {/* <MDBox>
           <Grid container spacing={3}>
             <Grid item xs={12} md={6} lg={8}>
               <Projects />
@@ -137,7 +207,7 @@ function Dashboard() {
               <OrdersOverview />
             </Grid>
           </Grid>
-        </MDBox>
+        </MDBox> */}
       </MDBox>
     </DashboardLayout>
   );

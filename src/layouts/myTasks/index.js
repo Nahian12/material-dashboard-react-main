@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { database } from "config/firebase_config"; // Adjust the import path as necessary
-import { ref, onValue, update } from "firebase/database"; // Adjust the import path as necessary
+import { ref, get, onValue, update, set } from "firebase/database"; // Adjust the import path as necessary
 
 import Card from "@mui/material/Card";
 import Grid from "@mui/material/Grid";
@@ -15,7 +15,6 @@ import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import MDButton from "components/MDButton";
 import Slider from "@mui/material/Slider";
-
 
 function MyTasks() {
   const [tasks, setTasks] = useState([]);
@@ -45,24 +44,92 @@ function MyTasks() {
     setEditingTaskId(null);
   };
 
-//   const handleStatusChange = async (taskId, newStatus) => {
-//     const taskRef = ref(database, `tasks/${taskId}`);
-//     await update(taskRef, { status: newStatus });
-//     setTasks((prevTasks) =>
-//       prevTasks.map((task) =>
-//         task.id === taskId ? { ...task, status: newStatus } : task
-//       )
-//     );
-//   };
-    const handleSliderChange = async (taskId, newValue) => {
-        const taskRef = ref(database, `tasks/${taskId}`);
-        await update(taskRef, { completion: newValue });
-        setTasks((prevTasks) =>
-        prevTasks.map((task) =>
-            task.id === taskId ? { ...task, completion: newValue } : task
-        )
-        );
-    };
+  //   const handleStatusChange = async (taskId, newStatus) => {
+  //     const taskRef = ref(database, `tasks/${taskId}`);
+  //     await update(taskRef, { status: newStatus });
+  //     setTasks((prevTasks) =>
+  //       prevTasks.map((task) =>
+  //         task.id === taskId ? { ...task, status: newStatus } : task
+  //       )
+  //     );
+  //   };
+
+  const handleSliderChange = async (taskId, newValue) => {
+    const taskRef = ref(database, `tasks/${taskId}`);
+  
+    // Get the current task state
+    const taskSnapshot = await get(taskRef);
+    const currentTask = taskSnapshot.val();
+  
+    // Calculate total items from the task
+    const items = currentTask?.items || {};
+    const totalItems = Object.values(items).reduce((sum, count) => sum + count, 0);
+  
+    // Update the task completion value
+    await update(taskRef, { completion: newValue });
+  
+    // If the task becomes completed (100%) and was not already completed
+    if (newValue === 100 && currentTask?.completion !== 100) {
+      // Increment Tasks Completed Tuesday
+      const tuesdayTasksRef = ref(database, "Statistics/Tasks Completed Tuesday");
+      const tuesdaySnapshot = await get(tuesdayTasksRef);
+      const tuesdayCount = tuesdaySnapshot.val() || 0;
+      await set(tuesdayTasksRef, tuesdayCount + 1);
+  
+      // Increment Completed Tasks January
+      const januaryTasksRef = ref(database, "Statistics/Completed Tasks January");
+      const januarySnapshot = await get(januaryTasksRef);
+      const januaryCount = januarySnapshot.val() || 0;
+      await set(januaryTasksRef, januaryCount + 1);
+  
+      // Increment Tasks Completed Today
+      const todayTasksRef = ref(database, "Statistics/Tasks Completed Today");
+      const todaySnapshot = await get(todayTasksRef);
+      const todayCount = todaySnapshot.val() || 0;
+      await set(todayTasksRef, todayCount + 1);
+  
+      // Increment Tasks Completed This Week
+      const weeklyTasksRef = ref(database, "Statistics/Tasks Completed This Week");
+      const weeklySnapshot = await get(weeklyTasksRef);
+      const weeklyCount = weeklySnapshot.val() || 0;
+      await set(weeklyTasksRef, weeklyCount + 1);
+  
+      // Decrease Pending Tasks by 1 if it's greater than 0
+      const pendingTasksRef = ref(database, "Statistics/Pending Tasks");
+      const pendingTasksSnapshot = await get(pendingTasksRef);
+      const pendingCount = pendingTasksSnapshot.val() || 0;
+  
+      if (pendingCount > 0) {
+        await set(pendingTasksRef, pendingCount - 1);
+      }
+  
+      // Update Uncollected Litter
+      const uncollectedLitterRef = ref(database, "Statistics/Uncollected Litter");
+      const uncollectedLitterSnapshot = await get(uncollectedLitterRef);
+      const uncollectedLitter = uncollectedLitterSnapshot.val() || 0;
+  
+      if (uncollectedLitter >= totalItems) {
+        await set(uncollectedLitterRef, uncollectedLitter - totalItems);
+      }
+
+      // Update Uncollected Litter January
+      const uncollectedLitterJanuaryRef = ref(database, "Statistics/Uncollected litter January");
+      const uncollectedLitterJanuarySnapshot = await get(uncollectedLitterJanuaryRef);
+      const uncollectedLitterJanuary= uncollectedLitterJanuarySnapshot.val() || 0;
+
+      if (uncollectedLitterJanuary >= totalItems) {
+        await set(uncollectedLitterJanuaryRef, uncollectedLitterJanuary - totalItems);
+      }
+    }
+  
+    // Update the task list locally
+    setTasks((prevTasks) =>
+      prevTasks.map((task) =>
+        task.id === taskId ? { ...task, completion: newValue } : task
+      )
+    );
+  };
+
 
   const columns = [
     { Header: "Task ID", accessor: "task", align: "left", width: "10%" },
