@@ -6,8 +6,9 @@ import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 import MDInput from "components/MDInput";
 import MDButton from "components/MDButton";
-import CoverLayout from "layouts/authentication/components/CoverLayout";
+import BasicLayout from "layouts/authentication/components/BasicLayout";
 import bgImage from "assets/images/bg-sign-up-cover.jpeg";
+import bgPic from "assets/images/bgSignUp.png";
 import { auth, database } from "../../../config/firebase_config";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { ref, set } from "firebase/database";
@@ -15,18 +16,35 @@ import { ref, set } from "firebase/database";
 function Cover() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [umId, setUmId] = useState("");
+  const [role, setRole] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const navigate = useNavigate();
 
   const handleSignUp = async () => {
+    if (!fullName || !mobileNumber || !umId || !role) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       console.log("User created:", user);
+
+      // Save user data to Firebase Database
       await set(ref(database, "users/" + user.uid), {
+        fullName: fullName,
+        mobileNumber: mobileNumber,
+        id: umId,
+        role: role,
         email: user.email,
         rememberMe: rememberMe,
+        status: "active",
       });
+
       console.log("User data saved to database.");
       navigate("/dashboard"); // Redirect to the dashboard after successful sign-up
     } catch (error) {
@@ -36,7 +54,7 @@ function Cover() {
   };
 
   return (
-    <CoverLayout image={bgImage}>
+    <BasicLayout image={bgPic}>
       <Card>
         <MDBox
           variant="gradient"
@@ -57,6 +75,42 @@ function Cover() {
           <MDBox component="form" role="form">
             <MDBox mb={2}>
               <MDInput
+                type="text"
+                label="Full Name"
+                fullWidth
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+              />
+            </MDBox>
+            <MDBox mb={2}>
+              <MDInput
+                type="text"
+                label="Mobile Number"
+                fullWidth
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+              />
+            </MDBox>
+            <MDBox mb={2}>
+              <MDInput
+                type="text"
+                label="UM ID Number"
+                fullWidth
+                value={umId}
+                onChange={(e) => setUmId(e.target.value)}
+              />
+            </MDBox>
+            <MDBox mb={2}>
+              <MDInput
+                type="text"
+                label="Role"
+                fullWidth
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              />
+            </MDBox>
+            <MDBox mb={2}>
+              <MDInput
                 type="email"
                 label="Email"
                 fullWidth
@@ -73,7 +127,7 @@ function Cover() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </MDBox>
-            <MDBox display="flex" alignItems="center" ml={-1}>
+            {/* <MDBox display="flex" alignItems="center" ml={-1}>
               <Checkbox checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
               <MDTypography
                 variant="button"
@@ -84,7 +138,7 @@ function Cover() {
               >
                 &nbsp;&nbsp;Remember me
               </MDTypography>
-            </MDBox>
+            </MDBox> */}
             <MDBox mt={4} mb={1}>
               <MDButton variant="gradient" color="info" fullWidth onClick={handleSignUp}>
                 Sign Up
@@ -108,7 +162,7 @@ function Cover() {
           </MDBox>
         </MDBox>
       </Card>
-    </CoverLayout>
+    </BasicLayout>
   );
 }
 

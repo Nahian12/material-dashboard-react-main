@@ -1,34 +1,137 @@
+import { database } from "config/firebase_config";
+import { useState, useEffect } from "react";
 import Grid from "@mui/material/Grid";
 import Divider from "@mui/material/Divider";
-
-import FacebookIcon from "@mui/icons-material/Facebook";
-import TwitterIcon from "@mui/icons-material/Twitter";
-import InstagramIcon from "@mui/icons-material/Instagram";
+import Icon from "@mui/material/Icon";
+import { getAuth } from "firebase/auth";
+import { ref as dbRef, get, update } from "firebase/database";
 
 import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
+import MDButton from "components/MDButton";
+import MDInput from "components/MDInput";
 
 import DashboardLayout from "examples/LayoutContainers/DashboardLayout";
 import DashboardNavbar from "examples/Navbars/DashboardNavbar";
 import ProfileInfoCard from "examples/Cards/InfoCards/ProfileInfoCard";
-import ProfilesList from "examples/Lists/ProfilesList";
-import DefaultProjectCard from "examples/Cards/ProjectCards/DefaultProjectCard";
 
 import Header from "layouts/profile/components/Header";
 import PlatformSettings from "layouts/profile/components/PlatformSettings";
 
-import profilesListData from "layouts/profile/data/profilesListData";
-
-import homeDecor1 from "assets/images/home-decor-1.jpg";
-import homeDecor2 from "assets/images/home-decor-2.jpg";
-import homeDecor3 from "assets/images/home-decor-3.jpg";
-import homeDecor4 from "assets/images/home-decor-4.jpeg";
-import team1 from "assets/images/team-1.jpg";
-import team2 from "assets/images/team-2.jpg";
-import team3 from "assets/images/team-3.jpg";
-import team4 from "assets/images/team-4.jpg";
-
 function Overview() {
+  const [userData, setUserData] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState({});
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+
+      if (currentUser) {
+        const userRef = dbRef(database, `users/${currentUser.uid}`);
+        const snapshot = await get(userRef);
+
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+
+          // If profilePicture is saved as "local", load from localStorage
+          if (data.profilePicture === "local") {
+            const localImage = localStorage.getItem("profilePicture");
+            setUserData({ ...data, profilePicture: localImage });
+          } else {
+            setUserData(data);
+          }
+        } else {
+          console.error("No user data found");
+        }
+      } else {
+        console.error("No authenticated user");
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  const handleEditToggle = () => {
+    setIsEditing(!isEditing);
+
+    if (!isEditing) {
+      // Populate edit form data with current user data
+      setEditData({
+        fullName: userData.fullName || "",
+        mobile: userData.mobileNumber || "",
+        id: userData.id || "",
+        role: userData.role || "",
+      });
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditData({ ...editData, [name]: value });
+  };
+
+  const handleSave = async () => {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
+    if (currentUser) {
+      const userRef = dbRef(database, `users/${currentUser.uid}`);
+      await update(userRef, editData);
+
+      setUserData((prevData) => ({ ...prevData, ...editData }));
+      setIsEditing(false);
+    } else {
+      console.error("No authenticated user");
+    }
+  };
+
+  const handleUpload = (event) => {
+    const file = event.target.files[0];
+    if (!file) {
+      alert("No file selected. Please choose a valid image.");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = async (e) => {
+      try {
+        const base64Image = e.target.result;
+
+        // Save the image to localStorage
+        localStorage.setItem("profilePicture", base64Image);
+
+        // Save the link (or relative path) to the database
+        const auth = getAuth();
+        const currentUser = auth.currentUser;
+
+        if (currentUser) {
+          await update(dbRef(database, `users/${currentUser.uid}`), {
+            profilePicture: "local", // You can save a relative link like "local"
+          });
+
+          // Update local state
+          setUserData((prevData) => ({
+            ...prevData,
+            profilePicture: base64Image,
+          }));
+
+          alert("Profile picture updated successfully!");
+        } else {
+          alert("User not authenticated");
+        }
+      } catch (error) {
+        console.error("Error uploading profile picture:", error);
+        alert("Failed to upload profile picture. Please try again.");
+      }
+    };
+
+    reader.readAsDataURL(file);
+  };
+
   return (
     <DashboardLayout>
       <DashboardNavbar />
@@ -41,133 +144,165 @@ function Overview() {
             </Grid>
             <Grid item xs={12} md={6} xl={4} sx={{ display: "flex" }}>
               <Divider orientation="vertical" sx={{ ml: -2, mr: 1 }} />
-              <ProfileInfoCard
-                title="profile information"
-                description="Hi, I’m Alec Thompson, Decisions: If you can’t decide, the answer is no. If two equally difficult paths, choose the one more painful in the short term (pain avoidance is creating an illusion of equality)."
-                info={{
-                  fullName: "Alec M. Thompson",
-                  mobile: "(44) 123 1234 123",
-                  email: "alecthompson@mail.com",
-                  location: "USA",
-                }}
-                social={[
-                  {
-                    link: "https://www.facebook.com/CreativeTim/",
-                    icon: <FacebookIcon />,
-                    color: "facebook",
-                  },
-                  {
-                    link: "https://twitter.com/creativetim",
-                    icon: <TwitterIcon />,
-                    color: "twitter",
-                  },
-                  {
-                    link: "https://www.instagram.com/creativetimofficial/",
-                    icon: <InstagramIcon />,
-                    color: "instagram",
-                  },
-                ]}
-                action={{ route: "", tooltip: "Edit Profile" }}
-                shadow={false}
+              {userData ? (
+                <ProfileInfoCard
+                  title="Profile Information"
+                  description={
+                    isEditing
+                      ? "Edit your profile information"
+                      : `Welcome ${userData.fullName || "User"} to your profile page.`
+                  }
+                  info={
+                    isEditing
+                      ? {
+                          fullName: (
+                            <MDInput
+                              label="Full Name"
+                              name="fullName"
+                              value={editData.fullName || ""}
+                              onChange={handleInputChange}
+                              fullWidth
+                            />
+                          ),
+                          mobile: (
+                            <MDInput
+                              label="Mobile Number"
+                              name="mobile"
+                              value={editData.mobile || ""}
+                              onChange={handleInputChange}
+                              fullWidth
+                            />
+                          ),
+                          email: (
+                            <MDTypography variant="caption" color="text" fontWeight="medium">
+                              {userData.email || "N/A"}
+                            </MDTypography>
+                          ),
+                          id: (
+                            <MDInput
+                              label="ID"
+                              name="id"
+                              value={editData.id || ""}
+                              onChange={handleInputChange}
+                              fullWidth
+                            />
+                          ),
+                          role: (
+                            <MDInput
+                              label="Role"
+                              name="role"
+                              value={editData.role || ""}
+                              onChange={handleInputChange}
+                              fullWidth
+                            />
+                          ),
+                          save: (
+                            <MDBox mt={2}>
+                              <MDButton variant="gradient" color="info" onClick={handleSave}>
+                                Save
+                              </MDButton>
+                            </MDBox>
+                          ),
+                        }
+                      : {
+                          fullName: userData.fullName || "N/A",
+                          mobile: userData.mobileNumber || "N/A",
+                          email: userData.email || "N/A",
+                          id: userData.id || "N/A",
+                          role: userData.role || "N/A",
+                        }
+                  }
+                  
+                  action={{
+                    route: "#",
+                    tooltip: isEditing ? "Save Changes" : "Edit Profile",
+                    onClick: () => {
+                      if (isEditing) {
+                        handleSave(); // Save the edited data
+                      } else {
+                        handleEditToggle(); // Toggle to edit mode
+                      }
+                    },
+                  }}                                   
+                  shadow={false}
               />
+              ) : (
+                <MDTypography variant="h6" fontWeight="medium" color="text">
+                  Loading user data...
+                </MDTypography>
+              )}
               <Divider orientation="vertical" sx={{ mx: 0 }} />
             </Grid>
             <Grid item xs={12} xl={4}>
-              <ProfilesList title="conversations" profiles={profilesListData} shadow={false} />
-            </Grid>
-          </Grid>
-        </MDBox>
-        <MDBox pt={2} px={2} lineHeight={1.25}>
-          <MDTypography variant="h6" fontWeight="medium">
-            Projects
-          </MDTypography>
-          <MDBox mb={1}>
-            <MDTypography variant="button" color="text">
-              Architects design houses
-            </MDTypography>
-          </MDBox>
-        </MDBox>
-        <MDBox p={2}>
-          <Grid container spacing={6}>
-            <Grid item xs={12} md={6} xl={3}>
-              <DefaultProjectCard
-                image={homeDecor1}
-                label="project #2"
-                title="modern"
-                description="As Uber works through a huge amount of internal management turmoil."
-                action={{
-                  type: "internal",
-                  route: "/pages/profile/profile-overview",
-                  color: "info",
-                  label: "view project",
-                }}
-                authors={[
-                  { image: team1, name: "Elena Morison" },
-                  { image: team2, name: "Ryan Milly" },
-                  { image: team3, name: "Nick Daniel" },
-                  { image: team4, name: "Peterson" },
-                ]}
-              />
-            </Grid>
-            <Grid item xs={12} md={6} xl={3}>
-              <DefaultProjectCard
-                image={homeDecor2}
-                label="project #1"
-                title="scandinavian"
-                description="Music is something that everyone has their own specific opinion about."
-                action={{
-                  type: "internal",
-                  route: "/pages/profile/profile-overview",
-                  color: "info",
-                  label: "view project",
-                }}
-                authors={[
-                  { image: team3, name: "Nick Daniel" },
-                  { image: team4, name: "Peterson" },
-                  { image: team1, name: "Elena Morison" },
-                  { image: team2, name: "Ryan Milly" },
-                ]}
-              />
-            </Grid>
-            <Grid item xs={12} md={6} xl={3}>
-              <DefaultProjectCard
-                image={homeDecor3}
-                label="project #3"
-                title="minimalist"
-                description="Different people have different taste, and various types of music."
-                action={{
-                  type: "internal",
-                  route: "/pages/profile/profile-overview",
-                  color: "info",
-                  label: "view project",
-                }}
-                authors={[
-                  { image: team4, name: "Peterson" },
-                  { image: team3, name: "Nick Daniel" },
-                  { image: team2, name: "Ryan Milly" },
-                  { image: team1, name: "Elena Morison" },
-                ]}
-              />
-            </Grid>
-            <Grid item xs={12} md={6} xl={3}>
-              <DefaultProjectCard
-                image={homeDecor4}
-                label="project #4"
-                title="gothic"
-                description="Why would anyone pick blue over pink? Pink is obviously a better color."
-                action={{
-                  type: "internal",
-                  route: "/pages/profile/profile-overview",
-                  color: "info",
-                  label: "view project",
-                }}
-                authors={[
-                  { image: team4, name: "Peterson" },
-                  { image: team3, name: "Nick Daniel" },
-                  { image: team2, name: "Ryan Milly" },
-                  { image: team1, name: "Elena Morison" },
-                ]}
-              />
+              <MDBox>
+                <MDTypography variant="h6" fontWeight="medium">
+                  Upload Profile Picture
+                </MDTypography>
+                {userData?.profilePicture ? (
+                  <MDBox mt={2} mb={2}>
+                    <img
+                      src={userData.profilePicture}
+                      alt="Profile"
+                      style={{ width: "100%", borderRadius: "8px" }}
+                    />
+                  </MDBox>
+                ) : (
+                  <MDTypography variant="button" color="text">
+                    No profile picture uploaded yet.
+                  </MDTypography>
+                )}
+                <MDBox mt={2}>
+                  <MDButton
+                    variant="outlined"
+                    color="info"
+                    component="label"
+                    disabled={uploading}
+                  >
+                    {uploading ? "Uploading..." : "Choose Picture"}
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={handleUpload}
+                    />
+                  </MDButton>
+                </MDBox>
+              </MDBox>
+              {isEditing && (
+                <MDBox mt={2}>
+                  <MDInput
+                    label="Full Name"
+                    name="fullName"
+                    value={editData.fullName || ""}
+                    onChange={handleInputChange}
+                    fullWidth
+                  />
+                  <MDInput
+                    label="Mobile Number"
+                    name="mobile"
+                    value={editData.mobile || ""}
+                    onChange={handleInputChange}
+                    fullWidth
+                    sx={{ mt: 2 }}
+                  />
+                  <MDInput
+                    label="ID"
+                    name="id"
+                    value={editData.id || ""}
+                    onChange={handleInputChange}
+                    fullWidth
+                    sx={{ mt: 2 }}
+                  />
+                  <MDInput
+                    label="Role"
+                    name="role"
+                    value={editData.role || ""}
+                    onChange={handleInputChange}
+                    fullWidth
+                    sx={{ mt: 2 }}
+                  />
+                </MDBox>
+              )}
             </Grid>
           </Grid>
         </MDBox>

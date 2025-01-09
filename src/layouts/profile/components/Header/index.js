@@ -1,9 +1,7 @@
-
-
 import { useState, useEffect } from "react";
-
-// prop-types is a library for typechecking of props.
 import PropTypes from "prop-types";
+import { getAuth } from "firebase/auth";
+import { ref, get } from "firebase/database";
 
 // @mui material components
 import Card from "@mui/material/Card";
@@ -22,32 +20,74 @@ import MDAvatar from "components/MDAvatar";
 import breakpoints from "assets/theme/base/breakpoints";
 
 // Images
-import burceMars from "assets/images/bruce-mars.jpg";
 import backgroundImage from "assets/images/bg-profile.jpeg";
+import placeholderImage from "assets/images/placeholder-profile.png";
+
+import { database } from "config/firebase_config";
+
+
 
 function Header({ children }) {
   const [tabsOrientation, setTabsOrientation] = useState("horizontal");
   const [tabValue, setTabValue] = useState(0);
+  const [user, setUser] = useState({
+    displayName: "User",
+    email: "",
+    photoURL: placeholderImage,
+  });
 
   useEffect(() => {
-    // A function that sets the orientation state of the tabs.
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
+    const fetchUserData = async () => {
+      if (currentUser) {
+        // Fetch user details from Realtime Database
+        const userRef = ref(database, `users/${currentUser.uid}`);
+        const snapshot = await get(userRef);
+
+        if (snapshot.exists()) {
+          const userData = snapshot.val();
+
+          // Check if profilePicture is stored locally
+          let profilePicture = placeholderImage;
+          if (userData.profilePicture === "local") {
+            // Fetch the Base64 image from localStorage
+            const localImage = localStorage.getItem("profilePicture");
+            profilePicture = localImage || placeholderImage;
+          } else if (userData.profilePicture) {
+            profilePicture = userData.profilePicture;
+          }
+
+          setUser({
+            displayName: userData.fullName || "User",
+            email: currentUser.email,
+            photoURL: profilePicture,
+          });
+        } else {
+          setUser({
+            displayName: "User",
+            email: currentUser.email,
+            photoURL: placeholderImage,
+          });
+        }
+      }
+    };
+
+    fetchUserData();
+
+    // Adjust tabs orientation
     function handleTabsOrientation() {
       return window.innerWidth < breakpoints.values.sm
         ? setTabsOrientation("vertical")
         : setTabsOrientation("horizontal");
     }
 
-    /** 
-     The event listener that's calling the handleTabsOrientation function when resizing the window.
-    */
     window.addEventListener("resize", handleTabsOrientation);
-
-    // Call the handleTabsOrientation function to set the state with the initial value.
     handleTabsOrientation();
 
-    // Remove event listener on cleanup
     return () => window.removeEventListener("resize", handleTabsOrientation);
-  }, [tabsOrientation]);
+  }, []);
 
   const handleSetTabValue = (event, newValue) => setTabValue(newValue);
 
@@ -73,7 +113,7 @@ function Header({ children }) {
       <Card
         sx={{
           position: "relative",
-          mt: -8,
+          mt: -24,
           mx: 3,
           py: 2,
           px: 2,
@@ -81,20 +121,25 @@ function Header({ children }) {
       >
         <Grid container spacing={3} alignItems="center">
           <Grid item>
-            <MDAvatar src={burceMars} alt="profile-image" size="xl" shadow="sm" />
+            <MDAvatar
+              src={user.photoURL}
+              alt="profile-image"
+              size="xl"
+              shadow="sm"
+            />
           </Grid>
           <Grid item>
             <MDBox height="100%" mt={0.5} lineHeight={1}>
               <MDTypography variant="h5" fontWeight="medium">
-                Richard Davis
+                {user.displayName}
               </MDTypography>
               <MDTypography variant="button" color="text" fontWeight="regular">
-                CEO / Co-Founder
+                {user.email}
               </MDTypography>
             </MDBox>
           </Grid>
           <Grid item xs={12} md={6} lg={4} sx={{ ml: "auto" }}>
-            <AppBar position="static">
+            {/* <AppBar position="static">
               <Tabs orientation={tabsOrientation} value={tabValue} onChange={handleSetTabValue}>
                 <Tab
                   label="App"
@@ -121,7 +166,7 @@ function Header({ children }) {
                   }
                 />
               </Tabs>
-            </AppBar>
+            </AppBar> */}
           </Grid>
         </Grid>
         {children}

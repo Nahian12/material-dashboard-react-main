@@ -20,7 +20,6 @@ import { addTask, updateTask, deleteTask } from "./taskService";
 import { database } from "config/firebase_config";
 import { ref, onValue, update } from "firebase/database";
 
-
 function TasksList() {
   const [tasks, setTasks] = useState([]);
   const [editingTaskId, setEditingTaskId] = useState(null);
@@ -47,6 +46,7 @@ function TasksList() {
       assignedTo: { name: "", email: "" },
       location: { latitude: "0.0000", longitude: "0.0000" },
       status: "",
+      items: {},
     };
     setEditFormData(task);
     setIsAddingNew(true);
@@ -63,7 +63,16 @@ function TasksList() {
 
   const handleSaveTask = async () => {
     if (isAddingNew) {
-      await addTask(editFormData);
+      const newTask = {
+        ...editFormData,
+        items: {
+          plasticCups: 2,
+          plasticBag: 1,
+          plasticBottle: 1,
+          ...editFormData.items,
+        },
+      };
+      await addTask(newTask);
     } else {
       const taskRef = ref(database, `tasks/${editingTaskId}`);
       await update(taskRef, editFormData);
