@@ -28,15 +28,11 @@ function Overview() {
     const fetchUserData = async () => {
       const auth = getAuth();
       const currentUser = auth.currentUser;
-
       if (currentUser) {
         const userRef = dbRef(database, `users/${currentUser.uid}`);
         const snapshot = await get(userRef);
-
         if (snapshot.exists()) {
           const data = snapshot.val();
-
-          // If profilePicture is saved as "local", load from localStorage
           if (data.profilePicture === "local") {
             const localImage = localStorage.getItem("profilePicture");
             setUserData({ ...data, profilePicture: localImage });

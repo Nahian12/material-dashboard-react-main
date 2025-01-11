@@ -27,12 +27,9 @@ app.get("/test", (req, res) => {
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   try {
-    // Use Firebase Admin SDK to verify the user's email and password
     const user = await admin.auth().getUserByEmail(email);
-    // If the user is found, respond with their UID
     return res.status(200).json({ uid: user.uid });
   } catch (error) {
-    // If there’s an error (e.g., user not found), respond with an error message
     res.status(400).json({ error: "Invalid email or password." });
   }
 });
@@ -57,7 +54,7 @@ app.post('/send-email', (req, res) => {
 
   transporter.sendMail(mailOptions, (error, info) => {
     if (error) {
-      console.error('Error sending email:', error); // Log the error
+      console.error('Error sending email:', error); 
       return res.status(500).json({ error: error.toString() });
     }
     res.status(200).json({ message: 'Email sent successfully' });

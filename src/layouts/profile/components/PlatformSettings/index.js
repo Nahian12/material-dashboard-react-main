@@ -83,15 +83,13 @@ function PlatformSettings() {
 
     if (currentUser) {
       const userRef = ref(database, `users/${currentUser.uid}`);
-      // Remove user data from the database
       remove(userRef)
         .then(() => {
-          // Delete the user from Firebase Authentication
           deleteUser(currentUser)
             .then(() => {
               console.log("Account deleted successfully");
               alert("Your account has been deleted.");
-              window.location.reload(); // Optionally, redirect or reload the page
+              window.location.reload(); 
             })
             .catch((error) => {
               console.error("Error deleting user:", error);

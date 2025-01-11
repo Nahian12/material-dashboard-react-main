@@ -41,7 +41,7 @@ function Basic() {
       await signInWithEmailAndPassword(auth, email, password);
       console.log("User signed in successfully.");
       console.log(email);
-      navigate("/dashboard"); // Redirect to the dashboard after login
+      navigate("/dashboard");
     } catch (error) {
       console.error("Login failed:", error);
       alert("Login failed. Please check your email and password.");

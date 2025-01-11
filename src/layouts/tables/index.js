@@ -101,15 +101,14 @@ function Tables() {
 
   const handleSaveClick = async () => {
     if (!validateInputs()) {
-      return; // Stop if validation fails
+      return;
     }
   
     try {
       if (isAddingNew) {
-        // Adding a new staff
         const newUserRef = push(ref(database, "users"));
         await update(newUserRef, {
-          id: editFormData.id || "", // Include the ID field
+          id: editFormData.id || "",
           fullName: editFormData.fullName || "",
           email: editFormData.email || "",
           role: editFormData.role || "",
