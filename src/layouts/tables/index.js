@@ -14,6 +14,7 @@ import { database } from "config/firebase_config"; // Database Path
 import { ref, onValue, update, remove, push } from "firebase/database";
 import MDButton from "components/MDButton";
 import MDInput from "components/MDInput";
+import Tooltip from "@mui/material/Tooltip";
 
 function Tables() {
   const [users, setUsers] = useState([]);
@@ -21,13 +22,48 @@ function Tables() {
   const [editingUserUID, setEditingUserUID] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [isAddingNew, setIsAddingNew] = useState(false); // Track if adding a new user
+  const [errorMessages, setErrorMessages] = useState({});
+
   
   const handleAddStaff = () => {
-     // Create a blank entry for the new staff row
-     setEditFormData({ email: "", role: "", status: "" });
-     setIsAddingNew(true);  // Enable adding mode
+    // Create a blank entry for the new staff row
+    setEditFormData({
+      fullName: "",  // Initialize fullName
+      email: "",     // Initialize email
+      role: "",      // Initialize role
+      status: "",    // Initialize status
+      mobileNumber: "" // Initialize mobileNumber
+    });
+    setIsAddingNew(true); // Enable adding mode
   };
+  
 
+  const validateInputs = () => {
+    const errors = {};
+
+    if (!editFormData.id) {
+      errors.id = "ID is required.";
+    }  
+    if (!editFormData.fullName) {
+      errors.fullName = "Name is required.";
+    }
+    if (!editFormData.email) {
+      errors.email = "Email is required.";
+    }
+    if (!editFormData.role) {
+      errors.role = "Role is required.";
+    }
+    if (!editFormData.status) {
+      errors.status = "Status is required.";
+    }
+    if (!editFormData.mobileNumber) {
+      errors.mobileNumber = "Mobile Number is required.";
+    }
+  
+    setErrorMessages(errors);
+    return Object.keys(errors).length === 0; // Return true if no errors
+  };
+  
   
 
   useEffect(() => {
@@ -64,39 +100,61 @@ function Tables() {
   };
 
   const handleSaveClick = async () => {
+    if (!validateInputs()) {
+      return; // Stop if validation fails
+    }
+  
     try {
       if (isAddingNew) {
         // Adding a new staff
         const newUserRef = push(ref(database, "users"));
-        await update(newUserRef, editFormData);
+        await update(newUserRef, {
+          id: editFormData.id || "", // Include the ID field
+          fullName: editFormData.fullName || "",
+          email: editFormData.email || "",
+          role: editFormData.role || "",
+          status: editFormData.status || "",
+          mobileNumber: editFormData.mobileNumber || "",
+        });
         setIsAddingNew(false);
         setEditingUserId(null);
         setEditFormData({});
         setEditingUserUID(null);
       } else {
-      const userRef = ref(database, `users/${editingUserUID}`);
-      const updatedData = {
-        email: editFormData.email,
-        role: editFormData.role,
-        status: editFormData.status,
-        rememberMe: editFormData.rememberMe !== undefined ? editFormData.rememberMe : false,
-      };
-      await update(userRef, updatedData);
-      setEditingUserId(null);
-      setEditingUserUID(null);
-      // Update the local state to reflect the changes
-      setUsers((prevUsers) =>
-        prevUsers.map((user) => (user.id === editingUserId ? { ...user, ...updatedData } : user))
-      );
-    }
+        // Editing an existing user
+        const userRef = ref(database, `users/${editingUserUID}`);
+        const updatedData = {
+          fullName: editFormData.fullName || "",
+          email: editFormData.email || "",
+          role: editFormData.role || "",
+          status: editFormData.status || "",
+          mobileNumber: editFormData.mobileNumber || "",
+          rememberMe: editFormData.rememberMe !== undefined ? editFormData.rememberMe : false,
+        };
+        await update(userRef, updatedData);
+        setEditingUserId(null);
+        setEditingUserUID(null);
+        // Update the local state to reflect the changes
+        setUsers((prevUsers) =>
+          prevUsers.map((user) => (user.id === editingUserId ? { ...user, ...updatedData } : user))
+        );
+      }
     } catch (error) {
       console.error("Error updating user:", error);
     }
   };
+  
   const handleCancelClick = () => {
-    setEditingUserId(null);
-    setEditingUserUID(null);
+    if (isAddingNew) {
+      setIsAddingNew(false); // Exit adding mode
+      setEditFormData({}); // Clear the form data
+    } else {
+      setEditingUserId(null);
+      setEditingUserUID(null);
+      setEditFormData({});
+    }
   };
+  
 
   const handleDeleteClick = async () => {
     try {
@@ -117,33 +175,33 @@ function Tables() {
   };
 
   const columns = [
-    { Header: "ID", accessor: "id", width: "10%" },
-    { Header: "Email", accessor: "email", width: "30%" },
-    { Header: "Role", accessor: "role", width: "20%" },
-    { Header: "Status", accessor: "status", width: "20%" },
+    { Header: "ID", accessor: "id", width: "5%" },
+    { Header: "Name", accessor: "fullName", width: "20%" },
+    { Header: "Email", accessor: "email", width: "20%" },
+    { Header: "Mobile Number", accessor: "mobileNumber", width: "20%", align: "center" },
+    { Header: "Role", accessor: "role", width: "5%", align: "center" },
+    { Header: "Status", accessor: "status", width: "5%", align: "center" },
     {
       Header: "Edit",
       accessor: "edit",
       width: "20%",
+      align: "center",
       Cell: ({ row }) =>
         isAddingNew && row.original.edit === "new" ? (
           <div>
-            <MDButton onClick={handleSaveClick} color="success">
+            <MDButton onClick={handleSaveClick} color="success" sx={{ mr: 0.5 }}>
               Save
             </MDButton>
             <MDButton onClick={handleCancelClick} color="warning">
               Cancel
             </MDButton>
-            <MDButton onClick={handleDeleteClick} color="error">
-              Delete
-            </MDButton>
           </div>
         ) : editingUserId === row.original.id ? (
           <div>
-            <MDButton onClick={handleSaveClick} color="success">
+            <MDButton onClick={handleSaveClick} color="success" sx={{ mr: 0.5 }}>
               Save
             </MDButton>
-            <MDButton onClick={handleCancelClick} color="warning">
+            <MDButton onClick={handleCancelClick} color="warning" sx={{ mr: 0.5 }}>
               Cancel
             </MDButton>
             <MDButton onClick={handleDeleteClick} color="error">
@@ -157,36 +215,217 @@ function Tables() {
         ),
     },
   ];
-
+  
   const rows = [
     ...(isAddingNew
       ? [
           {
-            id: <MDInput name="id" value={editFormData.id} onChange={handleInputChange} />,
-            email: <MDInput name="email" value={editFormData.email} onChange={handleInputChange} />,
-            role: <MDInput name="role" value={editFormData.role} onChange={handleInputChange} />,
-            status: <MDInput name="status" value={editFormData.status} onChange={handleInputChange} />,
-            edit: "new",  // Assign "new" as a placeholder to handle this row differently
+            id: (
+              <MDBox mb={2}>
+                <MDInput
+                  name="id"
+                  value={editFormData.id}
+                  onChange={handleInputChange}
+                  label="ID"
+                  fullWidth
+                />
+                {errorMessages.id && (
+                  <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                    {errorMessages.id}
+                  </MDTypography>
+                )}
+              </MDBox>
+            ),
+            fullName: (
+              <MDBox mb={2}>
+                <MDInput
+                  name="fullName"
+                  value={editFormData.fullName || ""} // Updated to use fullName
+                  onChange={handleInputChange}
+                  label="Name"
+                  fullWidth
+                />
+                {errorMessages.fullName && (
+                  <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                    {errorMessages.fullName}
+                  </MDTypography>
+                )}
+              </MDBox>
+            ),
+            email: (
+              <MDBox mb={2}>
+                <MDInput
+                  name="email"
+                  value={editFormData.email}
+                  onChange={handleInputChange}
+                  label="Email"
+                  fullWidth
+                />
+                {errorMessages.email && (
+                  <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                    {errorMessages.email}
+                  </MDTypography>
+                )}
+              </MDBox>
+            ),
+            mobileNumber: (
+              <MDBox mb={2}>
+                <MDInput
+                  name="mobileNumber"
+                  value={editFormData.mobileNumber || ""}
+                  onChange={handleInputChange}
+                  label="Mobile Number"
+                  fullWidth
+                />
+                {errorMessages.mobileNumber && (
+                  <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                    {errorMessages.mobileNumber}
+                  </MDTypography>
+                )}
+              </MDBox>
+            ),
+            role: (
+              <MDBox mb={2}>
+                <MDInput
+                  name="role"
+                  value={editFormData.role}
+                  onChange={handleInputChange}
+                  label="Role"
+                  
+                />
+                {errorMessages.role && (
+                  <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                    {errorMessages.role}
+                  </MDTypography>
+                )}
+              </MDBox>
+            ),
+            status: (
+              <MDBox mb={2}>
+                <MDInput
+                  name="status"
+                  value={editFormData.status}
+                  onChange={handleInputChange}
+                  label="Status"
+                  
+                />
+                {errorMessages.status && (
+                  <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                    {errorMessages.status}
+                  </MDTypography>
+                )}
+              </MDBox>
+            ),
+            edit: "new",
           },
         ]
       : []),
     ...users.map((user) => ({
       id: user.id,
+      fullName:
+        editingUserId === user.id ? (
+          <MDBox mb={2}>
+            <MDInput
+              name="fullName"
+              value={editFormData.fullName || ""} // Updated to use fullName
+              onChange={handleInputChange}
+              label="Name"
+              fullWidth
+            />
+            {errorMessages.fullName && (
+              <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                {errorMessages.fullName}
+              </MDTypography>
+            )}
+          </MDBox>
+        ) : (
+          user.fullName.length > 25 ? (
+            <Tooltip title={user.fullName}>
+              <span>{`${user.fullName.substring(0, 25)}...`}</span>
+            </Tooltip>
+          ) : (
+            user.fullName
+          )
+        ),
       email:
         editingUserId === user.id ? (
-          <MDInput name="email" value={editFormData.email} onChange={handleInputChange} />
+          <MDBox mb={2}>
+            <MDInput
+              name="email"
+              value={editFormData.email}
+              onChange={handleInputChange}
+              label="Email"
+              fullWidth
+            />
+            {errorMessages.email && (
+              <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                {errorMessages.email}
+              </MDTypography>
+            )}
+          </MDBox>
         ) : (
-          user.email
+          user.email.length > 25 ? (
+            <Tooltip title={user.email}>
+              <span>{`${user.email.substring(0, 25)}...`}</span>
+            </Tooltip>
+          ) : (
+            user.email
+          )
+        ),
+      mobileNumber:
+        editingUserId === user.id ? (
+          <MDBox mb={2}>
+            <MDInput
+              name="mobileNumber"
+              value={editFormData.mobileNumber || ""}
+              onChange={handleInputChange}
+              label="Mobile Number"
+              fullWidth
+            />
+            {errorMessages.mobileNumber && (
+              <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                {errorMessages.mobileNumber}
+              </MDTypography>
+            )}
+          </MDBox>
+        ) : (
+          user.mobileNumber
         ),
       role:
         editingUserId === user.id ? (
-          <MDInput name="role" value={editFormData.role} onChange={handleInputChange} />
+          <MDBox mb={2}>
+            <MDInput
+              name="role"
+              value={editFormData.role}
+              onChange={handleInputChange}
+              label="Role"
+              fullWidth
+            />
+            {errorMessages.role && (
+              <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                {errorMessages.role}
+              </MDTypography>
+            )}
+          </MDBox>
         ) : (
           user.role
         ),
       status:
         editingUserId === user.id ? (
-          <MDInput name="status" value={editFormData.status} onChange={handleInputChange} />
+          <MDBox mb={2}>
+            <MDInput
+              name="status"
+              value={editFormData.status}
+              onChange={handleInputChange}
+              label="Status"
+              fullWidth
+            />
+            {errorMessages.status && (
+              <MDTypography variant="caption" color="error" sx={{ mt: 0.5, display: "block" }}>
+                {errorMessages.status}
+              </MDTypography>
+            )}
+          </MDBox>
         ) : (
           user.status
         ),
