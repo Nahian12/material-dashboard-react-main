@@ -43,6 +43,7 @@ function Cover() {
         email: user.email,
         rememberMe: rememberMe,
         status: "active",
+        completedThisMonth: 0,
       });
 
       console.log("User data saved to database.");

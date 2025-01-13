@@ -114,6 +114,7 @@ function Tables() {
           role: editFormData.role || "",
           status: editFormData.status || "",
           mobileNumber: editFormData.mobileNumber || "",
+          completedThisMonth: 0,
         });
         setIsAddingNew(false);
         setEditingUserId(null);
