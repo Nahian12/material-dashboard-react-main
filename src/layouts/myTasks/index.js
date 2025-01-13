@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { database } from "config/firebase_config"; // Adjust the import path as necessary
 import { ref, get, onValue, update, set } from "firebase/database"; // Adjust the import path as necessary
-
+import { getAuth } from "firebase/auth";
 import Card from "@mui/material/Card";
 import Grid from "@mui/material/Grid";
 import TextField from "@mui/material/TextField";
@@ -20,10 +20,33 @@ function MyTasks() {
   const [tasks, setTasks] = useState([]);
   const [comments, setComments] = useState({});
   const [editingTaskId, setEditingTaskId] = useState(null);
+  const [user, setUser] = useState(null);
 
+   // Fetch the current user from Firebase Authentication
+   useEffect(() => {
+    const fetchUser = async () => {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        const userRef = ref(database, `users/${currentUser.uid}`);
+        const snapshot = await get(userRef);
+        if (snapshot.exists()) {
+          setUser(snapshot.val());
+        } else {
+          console.error("User data not found in the database.");
+        }
+      } else {
+        console.error("No authenticated user.");
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  // Fetch tasks from the database
   useEffect(() => {
     const tasksRef = ref(database, "tasks");
-    onValue(tasksRef, (snapshot) => {
+    const unsubscribe = onValue(tasksRef, (snapshot) => {
       const data = snapshot.val();
       const tasksList = [];
       for (let id in data) {
@@ -31,7 +54,16 @@ function MyTasks() {
       }
       setTasks(tasksList);
     });
+
+    return () => unsubscribe(); // Cleanup the listener
   }, []);
+
+  // Filter tasks based on user role
+  const filteredTasks = user
+    ? user.role === "Admin"
+      ? tasks // Admin sees all tasks
+      : tasks.filter((task) => task.assignedTo?.id === user.id) // Staff sees only assigned tasks
+    : [];
 
   const handleCommentChange = (taskId, value) => {
     setComments({ ...comments, [taskId]: value });
@@ -44,57 +76,49 @@ function MyTasks() {
     setEditingTaskId(null);
   };
 
-  //   const handleStatusChange = async (taskId, newStatus) => {
-  //     const taskRef = ref(database, `tasks/${taskId}`);
-  //     await update(taskRef, { status: newStatus });
-  //     setTasks((prevTasks) =>
-  //       prevTasks.map((task) =>
-  //         task.id === taskId ? { ...task, status: newStatus } : task
-  //       )
-  //     );
-  //   };
+  const Coordinate = ({ latitude, longitude }) => (
+    <MDBox display="flex" alignItems="center" lineHeight={1}>
+      <MDBox lineHeight={1}>
+        <MDTypography display="block" variant="caption">
+          {latitude},
+        </MDTypography>
+        <MDTypography variant="caption">{longitude}</MDTypography>
+      </MDBox>
+    </MDBox>
+  );
 
   const handleSliderChange = async (taskId, newValue) => {
     const taskRef = ref(database, `tasks/${taskId}`);
   
-    // Get the current task state
     const taskSnapshot = await get(taskRef);
     const currentTask = taskSnapshot.val();
   
-    // Calculate total items from the task
     const items = currentTask?.items || {};
     const totalItems = Object.values(items).reduce((sum, count) => sum + count, 0);
   
-    // Update the task completion value
     await update(taskRef, { completion: newValue });
   
-    // If the task becomes completed (100%) and was not already completed
     if (newValue === 100 && currentTask?.completion !== 100) {
-      // Increment Tasks Completed Tuesday
       const tuesdayTasksRef = ref(database, "Statistics/Tasks Completed Tuesday");
       const tuesdaySnapshot = await get(tuesdayTasksRef);
       const tuesdayCount = tuesdaySnapshot.val() || 0;
       await set(tuesdayTasksRef, tuesdayCount + 1);
   
-      // Increment Completed Tasks January
       const januaryTasksRef = ref(database, "Statistics/Completed Tasks January");
       const januarySnapshot = await get(januaryTasksRef);
       const januaryCount = januarySnapshot.val() || 0;
       await set(januaryTasksRef, januaryCount + 1);
   
-      // Increment Tasks Completed Today
       const todayTasksRef = ref(database, "Statistics/Tasks Completed Today");
       const todaySnapshot = await get(todayTasksRef);
       const todayCount = todaySnapshot.val() || 0;
       await set(todayTasksRef, todayCount + 1);
   
-      // Increment Tasks Completed This Week
       const weeklyTasksRef = ref(database, "Statistics/Tasks Completed This Week");
       const weeklySnapshot = await get(weeklyTasksRef);
       const weeklyCount = weeklySnapshot.val() || 0;
       await set(weeklyTasksRef, weeklyCount + 1);
   
-      // Decrease Pending Tasks by 1 if it's greater than 0
       const pendingTasksRef = ref(database, "Statistics/Pending Tasks");
       const pendingTasksSnapshot = await get(pendingTasksRef);
       const pendingCount = pendingTasksSnapshot.val() || 0;
@@ -103,7 +127,6 @@ function MyTasks() {
         await set(pendingTasksRef, pendingCount - 1);
       }
   
-      // Update Uncollected Litter
       const uncollectedLitterRef = ref(database, "Statistics/Uncollected Litter");
       const uncollectedLitterSnapshot = await get(uncollectedLitterRef);
       const uncollectedLitter = uncollectedLitterSnapshot.val() || 0;
@@ -112,7 +135,6 @@ function MyTasks() {
         await set(uncollectedLitterRef, uncollectedLitter - totalItems);
       }
 
-      // Update Uncollected Litter January
       const uncollectedLitterJanuaryRef = ref(database, "Statistics/Uncollected litter January");
       const uncollectedLitterJanuarySnapshot = await get(uncollectedLitterJanuaryRef);
       const uncollectedLitterJanuary= uncollectedLitterJanuarySnapshot.val() || 0;
@@ -122,7 +144,6 @@ function MyTasks() {
       }
     }
   
-    // Update the task list locally
     setTasks((prevTasks) =>
       prevTasks.map((task) =>
         task.id === taskId ? { ...task, completion: newValue } : task
@@ -130,21 +151,32 @@ function MyTasks() {
     );
   };
 
-
   const columns = [
-    { Header: "Task ID", accessor: "task", align: "left", width: "10%" },
-    { Header: "Created", accessor: "created", align: "left" },
+    { Header: "Task ID", accessor: "task", align: "left", width: "5%" },
+    { Header: "Created", accessor: "created", align: "center" },
     { Header: "Location", accessor: "location", align: "center" },
     { Header: "Status", accessor: "status", align: "center" },
+    { Header: "Items", accessor: "items", align: "center" },
     { Header: "Comment", accessor: "comment", align: "center" },
     { Header: "Action", accessor: "action", align: "center", width: "25%" },
   ];
 
-  const rows = tasks.map((task) => ({
+  const rows = filteredTasks.map((task) => ({
     task: task.task,
     created: task.created,
-    location: `${task.location.latitude}, ${task.location.longitude}`,
+    location: (
+      <Coordinate latitude={task.location.latitude} longitude={task.location.longitude} />
+    ),
     status: task.completion === 0 ? "Not Started" : task.completion === 100 ? "Completed" : `${task.completion}%`,
+    items: (
+      <ul>
+        {Object.entries(task.items || {}).map(([key, value]) => (
+          <li key={key}>
+            {key}: {value}
+          </li>
+        ))}
+      </ul>
+    ),
     comment: (
       <MDBox display="flex" alignItems="center">
         <TextField

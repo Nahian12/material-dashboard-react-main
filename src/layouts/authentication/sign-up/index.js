@@ -34,7 +34,6 @@ function Cover() {
       const user = userCredential.user;
       console.log("User created:", user);
 
-      // Save user data to Firebase Database
       await set(ref(database, "users/" + user.uid), {
         fullName: fullName,
         mobileNumber: mobileNumber,
@@ -43,11 +42,11 @@ function Cover() {
         email: user.email,
         rememberMe: rememberMe,
         status: "active",
-        completedThisMonth: 0,
+        completedThisMonth: 0
       });
 
       console.log("User data saved to database.");
-      navigate("/dashboard"); // Redirect to the dashboard after successful sign-up
+      navigate("/dashboard");
     } catch (error) {
       console.error("Sign up failed:", error);
       alert("Sign up failed. Please try again.");
@@ -104,10 +103,14 @@ function Cover() {
             <MDBox mb={2}>
               <MDInput
                 type="text"
-                label="Role"
+                label="Role (Admin or Staff)"
                 fullWidth
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
+                error={role && role !== "Admin" && role !== "Staff"} // Show error if input is invalid
+                helperText={
+                  role && role !== "Admin" && role !== "Staff" ? "Role must be Admin or Staff" : ""
+                }
               />
             </MDBox>
             <MDBox mb={2}>
@@ -128,18 +131,6 @@ function Cover() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </MDBox>
-            {/* <MDBox display="flex" alignItems="center" ml={-1}>
-              <Checkbox checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
-              <MDTypography
-                variant="button"
-                fontWeight="regular"
-                color="text"
-                onClick={() => setRememberMe(!rememberMe)}
-                sx={{ cursor: "pointer", userSelect: "none", ml: -1 }}
-              >
-                &nbsp;&nbsp;Remember me
-              </MDTypography>
-            </MDBox> */}
             <MDBox mt={4} mb={1}>
               <MDButton variant="gradient" color="info" fullWidth onClick={handleSignUp}>
                 Sign Up
