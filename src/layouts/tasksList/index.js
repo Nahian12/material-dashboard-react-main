@@ -18,7 +18,7 @@ import Slider from "@mui/material/Slider";
 
 import { addTask, updateTask, deleteTask } from "./taskService";
 import { database } from "config/firebase_config";
-import { ref, onValue, update } from "firebase/database";
+import { ref, onValue, update, push, remove } from "firebase/database";
 
 function TasksList() {
   const [tasks, setTasks] = useState([]);
@@ -26,71 +26,129 @@ function TasksList() {
   const [editingTask, setEditingTask] = useState({});
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [editFormData, setEditFormData] = useState({});
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
     const taskRef = ref(database, "tasks");
     onValue(taskRef, (snapshot) => {
-      const tasks = snapshot.val();
+      const data = snapshot.val();
       const taskList = [];
-      for (let id in tasks) {
-        taskList.push({ id, ...tasks[id] });
+      for (let key in data) {
+        taskList.push({ id: key, ...data[key] });
       }
       setTasks(taskList);
+    });
+
+    const usersRef = ref(database, "users");
+    onValue(usersRef, (snapshot) => {
+      const data = snapshot.val();
+      const userList = [];
+      for (let key in data) {
+        userList.push({ id: key, name: data[key].fullName, email: data[key].email });
+      }
+      setUsers(userList);
     });
   }, []);
 
   const handleAddTask = () => {
-    const task = {
+    const newTaskTemplate = {
       task: "",
       created: new Date().toLocaleString(),
       assignedTo: { name: "", email: "" },
-      location: { latitude: "0.0000", longitude: "0.0000" },
+      location: { latitude: "", longitude: "" },
+      completion: 0,
       status: "",
       items: {},
     };
-    setEditFormData(task);
+    setEditFormData(newTaskTemplate);
     setIsAddingNew(true);
   };
 
   const handleSliderChange = (taskId, newValue) => {
-    setEditFormData({ ...editFormData, completion: newValue });
+    if (isAddingNew) {
+      setEditFormData((prevFormData) => ({
+        ...prevFormData,
+        completion: newValue,
+      }));
+    } else if (editingTaskId === taskId) {
+      setEditingTask((prevTask) => ({
+        ...prevTask,
+        completion: newValue,
+      }));
+    }
   };
-
+  
   const handleEditTask = (task) => {
     setEditingTaskId(task.id);
-    setEditingTask(task);
+  
+    const formatItems = (items) => {
+      return Object.entries(items || {})
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(", ");
+    };
+  
+    setEditingTask({
+      ...task,
+      items: formatItems(task.items),
+    });
   };
-
+  
   const handleSaveTask = async () => {
-    if (isAddingNew) {
-      const newTask = {
-        ...editFormData,
-        items: {
-          plasticCups: 2,
-          plasticBag: 1,
-          plasticBottle: 1,
-          ...editFormData.items,
-        },
+    try {
+      const parseItems = (itemsString) => {
+        return Object.fromEntries(
+          itemsString.split(",").map((item) => {
+            const [key, value] = item.split(":").map((part) => part.trim());
+            return [key, Number(value)];
+          })
+        );
       };
-      await addTask(newTask);
-    } else {
-      const taskRef = ref(database, `tasks/${editingTaskId}`);
-      await update(taskRef, editFormData);
+  
+      if (isAddingNew) {
+        const taskRef = push(ref(database, "tasks"));
+        const newTask = {
+          ...editFormData,
+          id: taskRef.key,
+          items: parseItems(editFormData.items || ""),
+          created: new Date().toLocaleString(),
+          completion: 0,
+          status: "Pending",
+          collected: false,
+        };
+        await update(taskRef, newTask);
+      } else {
+        const taskRef = ref(database, `tasks/${editingTaskId}`);
+        const updatedTask = {
+          ...editingTask,
+          items: parseItems(editingTask.items || ""),
+        };
+        await update(taskRef, updatedTask);
+      }
+  
+      setIsAddingNew(false);
+      setEditingTaskId(null);
+      setEditFormData({});
+    } catch (error) {
+      console.error("Error saving task:", error);
     }
+  };
+  
+  const handleCancelClick = () => {
     setIsAddingNew(false);
     setEditingTaskId(null);
+    setEditingTask({});
     setEditFormData({});
   };
-
-  const handleCancelClick = () => {
-    setEditingTaskId(null);
-    setEditingTask({});
+  
+  const handleDeleteTask = async (taskId) => {
+    try {
+      const taskRef = ref(database, `tasks/${taskId}`);
+      await remove(taskRef);
+    } catch (error) {
+      console.error("Error deleting task:", error);
+    }
   };
-
-  const handleDeleteTask = (taskId) => {
-    deleteTask(taskId);
-  };
-
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
   
@@ -147,7 +205,6 @@ function TasksList() {
     }
   };
   
-
   const Author = ({ name, email }) => (
     <MDBox display="flex" alignItems="center" lineHeight={1}>
       <MDBox lineHeight={1}>
@@ -185,6 +242,7 @@ function TasksList() {
     { Header: "Created", accessor: "created", align: "left" },
     { Header: "Assigned To", accessor: "assignedTo", align: "center" },
     { Header: "Location", accessor: "location", align: "center" },
+    { Header: "Items", accessor: "items", align: "center" },
     { Header: "Status", accessor: "status", align: "center" },
     { Header: "action", accessor: "action", align: "center" },
   ];
@@ -198,17 +256,36 @@ function TasksList() {
                       {editFormData.created}
                     </MDTypography>,
             assignedTo: <>
-            <MDInput
-              name="assignedTo.name"
-              value={editFormData.assignedTo?.name || ""}
-              onChange={handleChange}
-              sx={{ mr: 1 }} 
-            />
-            <MDInput
-              name="assignedTo.email"
-              value={editFormData.assignedTo?.email || ""}
-              onChange={handleChange}
-            />
+            <MDBox>
+              <select
+                name="assignedTo"
+                value={editFormData.assignedTo?.id || ""}
+                onChange={(e) => {
+                  const selectedUser = users.find((user) => user.id === e.target.value);
+                  setEditFormData({
+                    ...editFormData,
+                    assignedTo: {
+                      id: selectedUser?.id,
+                      name: selectedUser?.name,
+                      email: selectedUser?.email,
+                    },
+                  });
+                }}
+                style={{
+                  width: "100%",
+                  padding: "5px",
+                  borderRadius: "4px",
+                  border: "1px solid #ccc",
+                }}
+              >
+                <option value="">Select User</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name}
+                  </option>
+                ))}
+              </select>
+            </MDBox>
           </>,
             location: <>
             <MDInput
@@ -223,6 +300,15 @@ function TasksList() {
               onChange={handleChange}
             />
           </>,
+          items: (
+            <MDInput
+              name="items"
+              value={editFormData.items || ""}
+              onChange={handleChange}
+              placeholder="Enter items as 'Aluminium Can: 2, Cigarette Bud: 3'"
+              fullWidth
+            />
+          ),
             status:(
               <MDBox width="100%">
                 <Slider
@@ -246,10 +332,10 @@ function TasksList() {
                     padding: '15px 0',
                     '& .MuiSlider-track': {
                       border: 'none',
-                      height: 4, // Increase the height of the track
+                      height: 4,
                     },
                     '& .MuiSlider-rail': {
-                      height: 4, // Increase the height of the rail
+                      height: 4,
                     },
                     '& .MuiSlider-thumb': {
                       height: 20,
@@ -292,7 +378,6 @@ function TasksList() {
             ),
             action:
             <>
-            
               <div>
                 <MDButton onClick={handleSaveTask} color="success">
                   Save
@@ -301,7 +386,6 @@ function TasksList() {
                   Cancel
                 </MDButton>
               </div>
-             
             </>
           },
         ]
@@ -320,21 +404,38 @@ function TasksList() {
     ),
     assignedTo:
       editingTaskId === task.id ? (
-        <>
-          <MDInput
-            name="assignedTo.name"
-            value={editingTask.assignedTo?.name || ""}
-            onChange={handleChange}
-            sx={{ mr: 1 }}
-          />
-          <MDInput
-            name="assignedTo.email"
-            value={editingTask.assignedTo?.email || ""}
-            onChange={handleChange}
-          />
-        </>
+        <MDBox>
+          <select
+            name="assignedTo"
+            value={editingTask.assignedTo?.id || ""}
+            onChange={(e) => {
+              const selectedUser = users.find((user) => user.id === e.target.value);
+              setEditingTask({
+                ...editingTask,
+                assignedTo: {
+                  id: selectedUser?.id,
+                  name: selectedUser?.name,
+                  email: selectedUser?.email,
+                },
+              });
+            }}
+            style={{
+              width: "80%",
+              padding: "5px",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+            }}
+          >
+            <option value="">Select User</option>
+            {users.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name}
+              </option>
+            ))}
+          </select>
+        </MDBox>
       ) : (
-        <Author name={task.assignedTo.name} email={task.assignedTo.email} />
+        <Author name={task.assignedTo?.name || "Unassigned"} email={task.assignedTo?.email || ""} />
       ),
     location:
       editingTaskId === task.id ? (
@@ -352,7 +453,28 @@ function TasksList() {
           />
         </>
       ) : (
-        <Coordinate latitude={task.location.latitude} longitude={task.location.longitude} />
+        <Coordinate
+          latitude={task.location?.latitude || "N/A"}
+          longitude={task.location?.longitude || "N/A"}
+        />
+      ),
+      items:
+      editingTaskId === task.id ? (
+        <MDInput
+          name="items"
+          value={editingTask.items || ""}
+          onChange={handleChange}
+          placeholder="Enter items as 'Aluminium Can: 2, Cigarette Bud: 3'"
+          fullWidth
+        />
+      ) : (
+        <ul>
+          {Object.entries(task.items || {}).map(([key, value]) => (
+            <li key={key}>
+              {key}: {value}
+            </li>
+          ))}
+        </ul>
       ),
       status:
       editingTaskId === task.id ? (
@@ -378,10 +500,10 @@ function TasksList() {
               padding: '15px 0',
               '& .MuiSlider-track': {
                 border: 'none',
-                height: 4, // Increase the height of the track
+                height: 4,
               },
               '& .MuiSlider-rail': {
-                height: 4, // Increase the height of the rail
+                height: 4,
               },
               '& .MuiSlider-thumb': {
                 height: 20,
