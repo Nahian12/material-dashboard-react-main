@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { database } from "config/firebase_config"; // Adjust the import path as necessary
 import { ref, get, onValue, update, set } from "firebase/database"; // Adjust the import path as necessary
-import { getAuth } from "firebase/auth";
+
 import Card from "@mui/material/Card";
 import Grid from "@mui/material/Grid";
 import TextField from "@mui/material/TextField";
@@ -20,33 +20,10 @@ function MyTasks() {
   const [tasks, setTasks] = useState([]);
   const [comments, setComments] = useState({});
   const [editingTaskId, setEditingTaskId] = useState(null);
-  const [user, setUser] = useState(null);
 
-   // Fetch the current user from Firebase Authentication
-   useEffect(() => {
-    const fetchUser = async () => {
-      const auth = getAuth();
-      const currentUser = auth.currentUser;
-      if (currentUser) {
-        const userRef = ref(database, `users/${currentUser.uid}`);
-        const snapshot = await get(userRef);
-        if (snapshot.exists()) {
-          setUser(snapshot.val());
-        } else {
-          console.error("User data not found in the database.");
-        }
-      } else {
-        console.error("No authenticated user.");
-      }
-    };
-
-    fetchUser();
-  }, []);
-
-  // Fetch tasks from the database
   useEffect(() => {
     const tasksRef = ref(database, "tasks");
-    const unsubscribe = onValue(tasksRef, (snapshot) => {
+    onValue(tasksRef, (snapshot) => {
       const data = snapshot.val();
       const tasksList = [];
       for (let id in data) {
@@ -54,16 +31,7 @@ function MyTasks() {
       }
       setTasks(tasksList);
     });
-
-    return () => unsubscribe(); // Cleanup the listener
   }, []);
-
-  // Filter tasks based on user role
-  const filteredTasks = user
-    ? user.role === "Admin"
-      ? tasks // Admin sees all tasks
-      : tasks.filter((task) => task.assignedTo?.id === user.id) // Staff sees only assigned tasks
-    : [];
 
   const handleCommentChange = (taskId, value) => {
     setComments({ ...comments, [taskId]: value });
@@ -99,6 +67,18 @@ function MyTasks() {
     await update(taskRef, { completion: newValue });
   
     if (newValue === 100 && currentTask?.completion !== 100) {
+       // Increment the `completedThisMonth` for the assigned user
+    const assignedUserId = currentTask?.assignedTo?.id; // Assuming `id` contains the user ID
+    if (assignedUserId) {
+      const userRef = ref(database, `users/${assignedUserId}/completedThisMonth`);
+      const userSnapshot = await get(userRef);
+      const currentCompletedCount = userSnapshot.val() || 0;
+
+      // Update the `completedThisMonth` value directly
+      await set(userRef, currentCompletedCount + 1);
+    } else {
+      console.warn("No assigned user found for the task.");
+    }
       const tuesdayTasksRef = ref(database, "Statistics/Tasks Completed Tuesday");
       const tuesdaySnapshot = await get(tuesdayTasksRef);
       const tuesdayCount = tuesdaySnapshot.val() || 0;
@@ -161,7 +141,7 @@ function MyTasks() {
     { Header: "Action", accessor: "action", align: "center", width: "25%" },
   ];
 
-  const rows = filteredTasks.map((task) => ({
+  const rows = tasks.map((task) => ({
     task: task.task,
     created: task.created,
     location: (
