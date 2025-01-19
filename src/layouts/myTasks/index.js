@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { database } from "config/firebase_config"; // Adjust the import path as necessary
 import { ref, get, onValue, update, set } from "firebase/database"; // Adjust the import path as necessary
+import axios from "axios";
 
 import Card from "@mui/material/Card";
 import Grid from "@mui/material/Grid";
@@ -39,10 +40,27 @@ function MyTasks() {
   };
 
   const handleSaveComment = async (taskId) => {
-    const taskRef = ref(database, `tasks/${taskId}`);
-    await update(taskRef, { comment: comments[taskId] });
-    setEditingTaskId(null);
+    try {
+      // Update the comment in the database
+      const taskRef = ref(database, `tasks/${taskId}`);
+      await update(taskRef, { comment: comments[taskId] });
+      setEditingTaskId(null);
+  
+      // Send email notification to the specified email address
+      const adminEmail = "abidnahian2003@gmail.com";
+  
+      await axios.post("http://localhost:5000/send-email", {
+        email: adminEmail,
+        subject: "New Comment on Task",
+        text: `A new comment has been added to Task ID: ${taskId}. Comment: ${comments[taskId]}`,
+      });
+  
+      console.log("Email notification sent to abidnahian2003@gmail.com.");
+    } catch (error) {
+      console.error("Error saving comment or sending email:", error);
+    }
   };
+  
 
   const Coordinate = ({ latitude, longitude }) => (
     <MDBox display="flex" alignItems="center" lineHeight={1}>
