@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 // Initialize Firebase Admin SDK with service account
-const serviceAccount = require("C:/Users/User/Documents/GitHub/material-dashboard-react-main/src/config/accountFile.json");
+const serviceAccount = require("C:/Users/User/Documents/GitHub/EcoScan - FYP/src/config/accountFile.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
